@@ -1,0 +1,37 @@
+# Fitxers i directoris generats per l'IDE
+.idea/
+.vscode/
+*.iml
+
+# Fitxers de compilació
+*.out
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Fitxers i directoris de Go
+bin/
+pkg/
+*.test
+*.o
+
+# Fitxers temporals i de configuració
+*.log
+*.tmp
+*.swp
+*.bak
+
+# Fitxers de dependències
+vendor/
+
+# Fitxers d'entorn
+.env
+.env.*
+
+# Fitxers del client OpenAPI generat
+spec/
+internal/clients/backend_client.go
+
+# Docker
+docker-compose.override.yml
