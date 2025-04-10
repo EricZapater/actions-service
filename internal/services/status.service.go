@@ -20,12 +20,12 @@ type StatusService interface {
 }
 
 type statusService struct {
-	client *clients.ClientWithResponses
+	client clients.HttpBackendClient
 	state *internal.ServiceState
 	mu *sync.Mutex
 }
 
-func NewStatusService(client *clients.ClientWithResponses, state *internal.ServiceState) StatusService{
+func NewStatusService(client clients.HttpBackendClient, state *internal.ServiceState) StatusService{
 	return &statusService{
 		client: client,
 		state: state,
@@ -52,6 +52,9 @@ func(s *statusService)UpdateWorkcenterStatus(ctx context.Context, workcenterID, 
 	if err != nil{
 		return err
 	}
+	//enviar a l'api al back el canvi d'estatus
+	
+	//actualitzar l'objecte
 	wc.StatusId = status.Id
 	wc.StatusName = status.Name
 	wc.StatusOperatorsAllowed = status.OperatorsAllowed
@@ -59,29 +62,31 @@ func(s *statusService)UpdateWorkcenterStatus(ctx context.Context, workcenterID, 
 	wc.StatusStopped = status.Stopped
 	wc.StatusColor = status.Color	
 	wc.StatusStartTime = time.Now()
+	
 	return nil
 }
 
 func(s *statusService)GetStatusById(ctx context.Context, statusID uuid.UUID)(models.Status, error){
-	response, err := s.client.GetApiMachineStatusIdWithResponse(ctx, statusID)
+	url := fmt.Sprintf("/api/status/%v", statusID)
+	response, err := s.client.DoGetRequest(ctx, "GET",url)
 	var status models.Status
 	if err != nil {
 		log.Fatalf("Something went wrong calling the backend %v", err)
 		return status, err
 	}
 	defer func() { 
-		if response.HTTPResponse.Body != nil {
-			_ = response.HTTPResponse.Body.Close() 
+		if response.Body != nil {
+			_ = response.Body.Close() 
 		}
 	}()
-	if response.HTTPResponse.StatusCode == 200 {		
+	if response.StatusCode == 200 {		
 		
-		if err := json.Unmarshal(response.Body, &status); err != nil {
+		if err := json.NewDecoder(response.Body).Decode(&status); err != nil {
 			return status, fmt.Errorf("error deserializing response: %w", err)
 		}
 		return status, nil
 	}else{
-		return status, fmt.Errorf("response error: %v", response.HTTPResponse.Status)
+		return status, fmt.Errorf("response error: %v", response.Status)
 	}
 }
 

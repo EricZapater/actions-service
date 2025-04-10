@@ -38,3 +38,9 @@ type Workcenter struct {
 	Area Area `json:"Area"`
 	
 }
+
+type CreateWorkcenterShiftDTO struct{
+	WorkcenterID uuid.UUID `json:"workcenterId"`
+	ShiftDetailId uuid.UUID `json:"shiftDetailId"`
+	StartTime string `json:"startTime"`
+}

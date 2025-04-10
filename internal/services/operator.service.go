@@ -11,12 +11,12 @@ type OperatorService interface{
 }
 
 type operatorService struct {
-	client *clients.ClientWithResponses
+	client clients.HttpBackendClient
 	state *internal.ServiceState
 	mu *sync.Mutex
 }
 
-func NewOperatorService(client *clients.ClientWithResponses, state *internal.ServiceState) StatusService{
+func NewOperatorService(client clients.HttpBackendClient, state *internal.ServiceState) StatusService{
 	return &statusService{
 		client: client,
 		state: state,

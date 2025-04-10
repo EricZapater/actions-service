@@ -12,6 +12,7 @@ var once sync.Once
 
 type ServiceState struct {
 	Workcenters map[uuid.UUID]*models.WorkcenterDTO
+	Shifts map[uuid.UUID]*models.Shift	
 	Mu sync.RWMutex
 }
 

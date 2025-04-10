@@ -30,6 +30,7 @@ func (c *HealthCheckController) HealthCheck(ctx *gin.Context) {
 	fmt.Println(state.Workcenters[wcid])
 	ctx.JSON(http.StatusOK, gin.H{
 		"message": "Server Running",
-		"state" : state.Workcenters[wcid],
+		"state" : state.Workcenters,
+		"shifts": state.Shifts,
 	})
 }

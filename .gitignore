@@ -21,6 +21,7 @@ pkg/
 *.tmp
 *.swp
 *.bak
+*.txt
 
 # Fitxers de dependències
 vendor/
