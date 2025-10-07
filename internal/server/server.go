@@ -10,7 +10,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func Run(cfg *config.Config, services Services, controllers Controllers) {	
+func Run(cfg *config.Config) {	
 	fmt.Println("Starting server...")
 	server := gin.Default()
 	server.Use(cors.New(cors.Config{
@@ -27,20 +27,15 @@ func Run(cfg *config.Config, services Services, controllers Controllers) {
 
 
 
-	api := server.Group("/api")
+	//api := server.Group("/api")
 	//HealthCheck
-	api.GET("/healthcheck", controllers.HealthCheck.HealthCheck)
+	//api.GET("/healthcheck", controllers.HealthCheck.HealthCheck)
 	//Status
-	api.POST("/status", controllers.Status.UpdateWorkcenterStatus)
+	//api.POST("/status", controllers.Status.UpdateWorkcenterStatus)
 	//Operator
 	/*api.POST("/operator/clockin", controllers.Operator.ClockIn)
 	api.POST("/operator/clockout", controllers.Operator.ClockOut)*/
-	
-/*
-	app.Static("/docs", "./docs")
-    app.Get("/swagger/*", swagger.New(swagger.Config{
-        URL: "/docs/swagger.json", // Associa el fitxer correcte
-    }))*/
+
 	
 	if err := server.Run(fmt.Sprintf(":%s", cfg.ApiPort)); err != nil {
 		log.Fatalf("Error starting server: %v", err)

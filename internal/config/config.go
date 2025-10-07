@@ -11,6 +11,7 @@ import (
 type Config struct {
     BackendUrl string
     ApiPort string
+    RedisUrl string
 }
 
 // Càrrega les variables d'entorn del fitxer .env
@@ -26,6 +27,7 @@ func Load() (*Config, error) {
     config := &Config{
         BackendUrl: os.Getenv("BACKEND_URL"),
         ApiPort: os.Getenv("API_PORT"),
+        RedisUrl: os.Getenv("REDIS_URL"),
     }
 
     // Retornar la configuració carregada
