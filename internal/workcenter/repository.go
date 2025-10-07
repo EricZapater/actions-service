@@ -48,19 +48,25 @@ func(r *Repository) Set(ctx context.Context, id string, value models.WorkcenterD
 }
 
 func (r *Repository) FindByID(ctx context.Context, id string) (models.WorkcenterDTO, models.DataSource, error) {
-	workcenter, err := r.redisRepo.FindByID(ctx, id)
+	workcenter, err := r.memoryRepo.FindByID(ctx, id)
 	if err == nil {
 		return workcenter, models.SourceMemory, nil
 	}
 	if err != ErrWorkcenterNotFound {
 		return models.WorkcenterDTO{}, models.SourceNone, err
 	}
-	workcenter, err = r.memoryRepo.FindByID(ctx, id)
-	if err != nil {
+
+	workcenter, err = r.redisRepo.FindByID(ctx, id)
+	if err == nil {
+		_ = r.memoryRepo.Set(ctx, id, workcenter)
+		return workcenter, models.SourceRedis, nil
+	}
+	if err != ErrWorkcenterNotFound {
 		return models.WorkcenterDTO{}, models.SourceNone, err
 	}
-	return workcenter, models.SourceRedis,nil
+	return models.WorkcenterDTO{}, models.SourceNone, ErrWorkcenterNotFound
 }
+
 
 func(r *Repository) List(ctx context.Context) ([]models.WorkcenterDTO, error){
 	r.state.Mu.RLock()

@@ -1,7 +1,7 @@
 package server
 
 import (
-	"actions-service/internal/config"
+	"actions-service/internal/setup"
 	"fmt"
 	"log"
 	"time"
@@ -10,7 +10,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func Run(cfg *config.Config) {	
+func Run(app *setup.App) {	
 	fmt.Println("Starting server...")
 	server := gin.Default()
 	server.Use(cors.New(cors.Config{
@@ -25,7 +25,10 @@ func Run(cfg *config.Config) {
 		MaxAge: 12 * time.Hour,
 	}))
 
-
+	serverHandlers := NewHandler(app)
+	api := server.Group("/api")
+	api.GET("/healthcheck", serverHandlers.HealthCheck)
+	api.GET("/reload", serverHandlers.ReloadDTO)
 
 	//api := server.Group("/api")
 	//HealthCheck
@@ -37,7 +40,7 @@ func Run(cfg *config.Config) {
 	api.POST("/operator/clockout", controllers.Operator.ClockOut)*/
 
 	
-	if err := server.Run(fmt.Sprintf(":%s", cfg.ApiPort)); err != nil {
+	if err := server.Run(fmt.Sprintf(":%s", app.Cfg.ApiPort)); err != nil {
 		log.Fatalf("Error starting server: %v", err)
 	}
 }

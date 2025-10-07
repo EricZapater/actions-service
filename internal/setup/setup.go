@@ -3,6 +3,7 @@ package setup
 import (
 	"actions-service/internal/clients"
 	"actions-service/internal/config"
+	"actions-service/internal/operator"
 	"actions-service/internal/shift"
 	"actions-service/internal/state"
 	"actions-service/internal/workcenter"
@@ -14,6 +15,7 @@ import (
 type Services struct {
 	ShiftService shift.Service
 	WorkcenterService workcenter.Service
+	OperatorService operator.Service
 }
 
 type App struct {
@@ -36,6 +38,9 @@ func NewApp(ctx context.Context) (*App, error) {
 	})
 	state := state.New()
 
+	operatorRepo := operator.NewOperatorRepository(state, redisClient)
+	operatorService := operator.NewOperatorService(client, *operatorRepo)
+
 	shiftRepo := shift.NewShiftRepository(state)
 	shiftService := shift.NewShiftService(client, *shiftRepo)
 
@@ -45,6 +50,7 @@ func NewApp(ctx context.Context) (*App, error) {
 	services := Services{
 		ShiftService: shiftService,
 		WorkcenterService: workcenterService,
+		OperatorService: operatorService,
 	}
 	return &App{
 		Cfg: cfg,		

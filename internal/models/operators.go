@@ -29,11 +29,11 @@ type OperatorTypeResponse struct {
 }
 
 type OperatorDTO struct {
-	OperatorId   uuid.UUID `json:"OperatorId"`
+	OperatorID   uuid.UUID `json:"OperatorId"`
 	OperatorCode string    `json:"OperatorCode"`
 	OperatorName string    `json:"OperatorName"`
 	OperatorSurname string    `json:"OperatorSurname"`
-	OperatorTypeId uuid.UUID `json:"OperatorTypeId"`
+	OperatorTypeID uuid.UUID `json:"OperatorTypeId"`
 	OperatorTypeName string `json:"OperatorTypeName"`
 	OperatorTypeDescription string `json:"OperatorTypeDescription"`
 	OperatorTypeCost float64 `json:"OperatorTypeCost"`

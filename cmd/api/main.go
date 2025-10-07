@@ -21,9 +21,10 @@ func main() {
 	}
 
 	app.Services.ShiftService.BuildDTO(ctx)
+	app.Services.OperatorService.BuilDTO(ctx)
 	app.Services.WorkcenterService.BuildDTO(ctx)	
 	
-	go server.Run(app.Cfg)
+	go server.Run(app)
 
 
 	ticker := time.NewTicker(1*time.Minute)
