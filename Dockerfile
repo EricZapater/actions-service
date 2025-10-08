@@ -3,30 +3,20 @@ FROM golang:1.23.3-alpine AS builder
 
 WORKDIR /app
 
-# Instal·lem depèndencies necessàries
 RUN apk add --no-cache git ca-certificates
 
-# Copiem go.mod i go.sum
 COPY go.mod go.sum ./
 RUN go mod download
 
-# Copiem la resta del codi
 COPY . .
 
-# Build executable amb el nom correcte
 RUN go build -o /app/bin/actions-service ./cmd/api
 
-# Stage 2: Runtime
-FROM alpine:latest
+# Stage 2: Runtime amb Doppler preinstal·lat
+FROM dopplerhq/cli:3-alpine
 
 WORKDIR /app
 
-# Instal·lem dependencies i Doppler
-RUN apk add --no-cache ca-certificates curl bash && \
-    curl -Ls https://cli.doppler.com/install.sh | sh && \
-    rm -rf /var/cache/apk/*
-
-# Copiem amb el nom correcte
+# Copiem el binari
 COPY --from=builder /app/bin/actions-service /app/actions-service
 
-# No especifiquem CMD perquè ho fa el compose
