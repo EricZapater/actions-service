@@ -29,6 +29,17 @@ func(r *RedisRepo) Set(ctx context.Context, id string, value models.OperatorDTO)
 	return nil
 }
 
+func(r *RedisRepo) SetWorkcenterDTO(ctx context.Context, id string, value models.WorkcenterDTO) error{
+	data, err := json.Marshal(value)	
+	if err != nil {
+		return err
+	}
+	if err := r.client.Set(ctx, id, data, 0).Err(); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (r *RedisRepo) FindByID(ctx context.Context, id string) (models.OperatorDTO, error){
 	data, err := r.client.Get(ctx, id).Bytes()
 	if err != nil {

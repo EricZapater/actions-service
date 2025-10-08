@@ -45,6 +45,24 @@ func(r *Repository) Set(ctx context.Context, id string, value models.OperatorDTO
 	return nil
 }
 
+func(r *Repository) SetWorkcenterDTO(ctx context.Context, id string, value models.WorkcenterDTO)error{
+	g, ctx := errgroup.WithContext(ctx)
+	
+	g.Go(func() error {
+		return r.memoryRepo.SetWorkcenterDTO(ctx, id, value)
+		
+	})
+
+	g.Go(func() error {
+		return r.redisRepo.SetWorkcenterDTO(ctx, id, value)
+	})
+
+	if err := g.Wait(); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (r *Repository) FindByID(ctx context.Context, id string) (models.OperatorDTO, models.DataSource, error){
 	operator, err := r.memoryRepo.FindByID(ctx, id)
 	if err == nil {

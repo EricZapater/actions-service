@@ -24,6 +24,13 @@ func(r *MemoryRepo) Set(ctx context.Context, id string, value models.OperatorDTO
 	return nil
 }
 
+func(r *MemoryRepo) SetWorkcenterDTO(ctx context.Context, id string, value models.WorkcenterDTO) error{
+	r.state.Mu.Lock()			
+	defer r.state.Mu.Unlock()
+	r.state.Workcenters[id] = value
+	return nil
+}
+
 func(r *MemoryRepo) FindByID(ctx context.Context, id string) (models.OperatorDTO, error){
 	r.state.Mu.RLock()
 	defer r.state.Mu.RUnlock()

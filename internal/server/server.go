@@ -24,11 +24,16 @@ func Run(app *setup.App) {
 		},*/
 		MaxAge: 12 * time.Hour,
 	}))
-
+	
 	serverHandlers := NewHandler(app)
 	api := server.Group("/api")
 	api.GET("/healthcheck", serverHandlers.HealthCheck)
 	api.GET("/reload", serverHandlers.ReloadDTO)
+	api.POST("/operator/clockin", app.Handlers.OperatorHandler.ClockIn)
+	api.POST("/operator/clockout", app.Handlers.OperatorHandler.ClockOut)
+	ws := server.Group("/ws")
+	ws.GET("/general", serverHandlers.WSGeneral)
+	ws.GET("/workcenter/:id", serverHandlers.WSWorkcenter)
 
 	//api := server.Group("/api")
 	//HealthCheck

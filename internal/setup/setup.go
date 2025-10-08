@@ -7,6 +7,7 @@ import (
 	"actions-service/internal/shift"
 	"actions-service/internal/state"
 	"actions-service/internal/workcenter"
+	"actions-service/internal/ws"
 	"context"
 
 	"github.com/redis/go-redis/v9"
@@ -18,9 +19,16 @@ type Services struct {
 	OperatorService operator.Service
 }
 
+type Handlers struct {
+	OperatorHandler *operator.Handler
+}
+
 type App struct {
 	Cfg *config.Config	
 	Services Services
+	Handlers Handlers
+	State *state.State
+	Hub *ws.Hub
 }
 
 func NewApp(ctx context.Context) (*App, error) {
@@ -38,22 +46,35 @@ func NewApp(ctx context.Context) (*App, error) {
 	})
 	state := state.New()
 
-	operatorRepo := operator.NewOperatorRepository(state, redisClient)
-	operatorService := operator.NewOperatorService(client, *operatorRepo)
+	hub := ws.NewHub()	
+	
 
 	shiftRepo := shift.NewShiftRepository(state)
 	shiftService := shift.NewShiftService(client, *shiftRepo)
 
 	workcenterRepo := workcenter.NewWorkcenterRepository(state, redisClient)
-	workcenterService := workcenter.NewWorkcenterService(client, *workcenterRepo, shiftService)
+	workcenterService := workcenter.NewWorkcenterService(client, *workcenterRepo, shiftService, hub)
+
+	operatorRepo := operator.NewOperatorRepository(state, redisClient)
+	operatorService := operator.NewOperatorService(client, *operatorRepo, workcenterService, hub)
+	operatorHandler := operator.NewHandler(operatorService)
+
 
 	services := Services{
 		ShiftService: shiftService,
 		WorkcenterService: workcenterService,
 		OperatorService: operatorService,
 	}
+
+	handlers := Handlers{
+		OperatorHandler: operatorHandler,
+	}
+
 	return &App{
 		Cfg: cfg,		
 		Services: services,
+		Handlers: handlers,
+		State: state,
+		Hub: hub,
 	}, nil
 }

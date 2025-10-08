@@ -19,3 +19,7 @@ func New() *State{
 		Operators: make(map[string]models.OperatorDTO),
 	}
 }
+
+func (s *State) GetState() *State {
+	return s
+}

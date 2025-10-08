@@ -4,6 +4,7 @@ import (
 	"actions-service/internal/clients"
 	"actions-service/internal/models"
 	"actions-service/internal/shift"
+	"actions-service/internal/ws"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -16,19 +17,23 @@ import (
 type Service interface {
 	BuildDTO(ctx context.Context) error
 	SetCurrentShift(ctx context.Context) error
+	GetWorkcenterDTO(ctx context.Context, id string) (*models.WorkcenterDTO, error)
 }
 
 type service struct {
 	client clients.HttpBackendClient
 	repo  Repository
 	shiftService shift.Service
+	hub *ws.Hub
+	
 }
 
-func NewWorkcenterService(client clients.HttpBackendClient, repo Repository, shiftService shift.Service) Service {
+func NewWorkcenterService(client clients.HttpBackendClient, repo Repository, shiftService shift.Service, hub *ws.Hub) Service {
 	return &service{
 		client: client,
 		repo:  repo,
 		shiftService: shiftService,
+		hub: hub,
 	}
 }
 
@@ -124,6 +129,7 @@ func (s *service) BuildDTO(ctx context.Context)error {
 
 func(s *service) SetCurrentShift(ctx context.Context)error{
 	workcenters, err := s.repo.List(ctx)
+	hasChanged := false
 	if err != nil {
 		return fmt.Errorf("error listing workcenters: %w", err)
 	}
@@ -131,7 +137,8 @@ func(s *service) SetCurrentShift(ctx context.Context)error{
 		now := time.Now()
 		shiftDetail, err := s.shiftService.FindCurrentShift(ctx, now, wc.ShiftID)
 		if err != nil {
-			return fmt.Errorf("error finding current shift for workcenter %s: %w", wc.WorkcenterID.String(), err)
+			log.Printf("error finding current shift for workcenter %s: %v", wc.WorkcenterID.String(), err)
+    		continue
 		}
 		if wc.ShiftDetailId != shiftDetail.ID {
 			start := time.Date(
@@ -156,7 +163,21 @@ func(s *service) SetCurrentShift(ctx context.Context)error{
 			if err := s.repo.Set(ctx, wc.WorkcenterID.String(), wc); err != nil {
 				return fmt.Errorf("error updating workcenter %s: %w", wc.WorkcenterID.String(), err)
 			}
+			hasChanged = true
 		}
+	}
+	if hasChanged {
+		workcenters, err := s.repo.List(ctx)
+		if err != nil {
+			return fmt.Errorf("error listing workcenters: %w", err)
+		}
+		s.hub.Broadcast("general", struct {
+			Type string `json:"type"`
+			Payload interface{} `json:"payload"`
+		}{
+			Type: "workcenter_update",
+			Payload: workcenters,
+		})
 	}
 	return nil
 }
@@ -198,4 +219,18 @@ func(s *service) GetAreas(ctx context.Context)([]models.Area, error){
 		return nil, fmt.Errorf("Response error: %v", response.Status)
 	}
 	
+}
+
+func (s *service) GetWorkcenterDTO(ctx context.Context, id string) (*models.WorkcenterDTO, error) {
+	wc, source, err := s.repo.FindByID(ctx, id)
+	if err != nil {
+		if err == ErrWorkcenterNotFound {
+			return nil, nil
+		}
+		return nil, err
+	}
+	if source == models.SourceMemory || source == models.SourceRedis {
+		return &wc, nil
+	}
+	return nil, nil
 }

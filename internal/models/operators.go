@@ -3,8 +3,8 @@ package models
 import "github.com/google/uuid"
 
 type OperatorRequest struct {
-	WorkcenterId uuid.UUID `json:"WorkcenterId"`
-	OperatorId   uuid.UUID `json:"OperatorId"`
+	WorkcenterID uuid.UUID `json:"WorkcenterId"`
+	OperatorID   uuid.UUID `json:"OperatorId"`
 }
 
 type OperatorClockInDTO struct {
