@@ -26,5 +26,7 @@ RUN apk add --no-cache ca-certificates
 
 COPY --from=builder /app/bin/server /app/server
 
+RUN curl -sLf https://cli.doppler.com/install.sh | sh
+
 # Executem el binari
 CMD ["/app/server"]
