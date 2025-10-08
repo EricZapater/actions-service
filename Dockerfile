@@ -13,20 +13,20 @@ RUN go mod download
 # Copiem la resta del codi
 COPY . .
 
-# Build executable
-RUN go build -o /app/bin/server ./cmd/api
+# Build executable amb el nom correcte
+RUN go build -o /app/bin/actions-service ./cmd/api
 
 # Stage 2: Runtime
 FROM alpine:latest
 
 WORKDIR /app
 
-# Certs per HTTPS
-RUN apk add --no-cache ca-certificates
+# Instal·lem dependencies i Doppler
+RUN apk add --no-cache ca-certificates curl bash && \
+    curl -Ls https://cli.doppler.com/install.sh | sh && \
+    rm -rf /var/cache/apk/*
 
-COPY --from=builder /app/bin/server /app/server
+# Copiem amb el nom correcte
+COPY --from=builder /app/bin/actions-service /app/actions-service
 
-RUN curl -sLf https://cli.doppler.com/install.sh | sh
-
-# Executem el binari
-CMD ["/app/server"]
+# No especifiquem CMD perquè ho fa el compose
