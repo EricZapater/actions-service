@@ -24,6 +24,7 @@ func main() {
 	app.Services.OperatorService.BuilDTO(ctx)
 	app.Services.WorkcenterService.BuildDTO(ctx)	
 	
+	
 	go server.Run(app)
 
 
