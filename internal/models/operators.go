@@ -42,4 +42,5 @@ type OperatorDTO struct {
 	OperatorTypeName        string    `json:"operatorTypeName" example:"Operador Senior"`
 	OperatorTypeDescription string    `json:"operatorTypeDescription" example:"Operador amb més de 5 anys d'experiència"`
 	OperatorTypeCost        float64   `json:"operatorTypeCost" example:"25.50"`
+	OperatorStartTime string `json:"operatorStartTime" example:"2025-10-14T10:30:00Z"`
 }
