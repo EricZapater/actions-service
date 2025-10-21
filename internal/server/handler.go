@@ -67,7 +67,7 @@ func (h *Handler) ReloadDTO(ctx *gin.Context) {
 func (h *Handler) WSGeneral(ctx *gin.Context) {
 	state := h.app.State.GetState()
 	fmt.Println(state)
-	h.app.Hub.HandleWS(ctx.Writer, ctx.Request, "general", state)
+	h.app.Hub.HandleWS(ctx.Writer, ctx.Request, "general", state.Workcenters)
 }
 
 // WSWorkcenter godoc
