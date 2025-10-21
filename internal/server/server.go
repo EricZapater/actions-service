@@ -36,7 +36,7 @@ func Run(app *setup.App) {
 	fmt.Println("Starting server...")
 	server := gin.Default()
 	server.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"http://localhost"},
+		AllowOrigins:     []string{"*"},
 		AllowMethods:     []string{"PUT", "PATCH", "GET", "POST"},
 		AllowHeaders:     []string{"Origin"},
 		ExposeHeaders:    []string{"Content-Length"},
