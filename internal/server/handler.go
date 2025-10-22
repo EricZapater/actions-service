@@ -66,8 +66,24 @@ func (h *Handler) ReloadDTO(ctx *gin.Context) {
 func (h *Handler) WSGeneral(ctx *gin.Context) {
 	state := h.app.State.GetState()
 	//fmt.Println(state)
-	h.app.Hub.HandleWS(ctx.Writer, ctx.Request, "general", state.Workcenters)
+	h.app.Hub.HandleWS(ctx.Writer, ctx.Request, "general", struct {
+											Type string `json:"type"`
+											Payload interface{} `json:"payload"`
+									}{
+										Type:"General",
+										Payload: state.Workcenters,
+									})
 }
+
+/*
+s.hub.Broadcast(wc.WorkcenterID.String(), struct {
+			Type string `json:"type"`
+			Payload interface{} `json:"payload"`
+		}{
+			Type: "workcenter_update",
+			Payload: wc,
+		})
+*/
 
 // WSWorkcenter godoc
 // @Summary WebSocket de connexió per workcenter
@@ -82,5 +98,11 @@ func (h *Handler) WSGeneral(ctx *gin.Context) {
 func(h *Handler) WSWorkcenter(ctx *gin.Context) {
 	workcenterID := ctx.Param("id")
 	state := h.app.State.GetState()	
-	h.app.Hub.HandleWS(ctx.Writer, ctx.Request, workcenterID, state.Workcenters[workcenterID])
+	h.app.Hub.HandleWS(ctx.Writer, ctx.Request, workcenterID, struct {
+			Type string `json:"type"`
+			Payload interface{} `json:"payload"`
+	}{
+		Type: "Workcenter",
+		Payload: state.Workcenters[workcenterID],
+	})
 }
