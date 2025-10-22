@@ -123,6 +123,7 @@ func (s *service) ClockIn(ctx context.Context, operatorID, workcenterID string)e
 	//Fer el set al repo PERO del JSON sencer del workcenter
 	operator.OperatorStartTime = now.Format("2006-01-02T15:04:05")
 	wc.Operators = append(wc.Operators, operator)
+	fmt.Println(operator)
 	if err := s.repo.SetWorkcenterDTO(ctx, wc.WorkcenterID.String(), *wc); err != nil {
 		return fmt.Errorf("error updating workcenter %s: %w", wc.WorkcenterID.String(), err)
 	}

@@ -3,7 +3,6 @@ package server
 import (
 	"actions-service/internal/models"
 	"actions-service/internal/setup"
-	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -66,7 +65,7 @@ func (h *Handler) ReloadDTO(ctx *gin.Context) {
 // @Router /ws/general [get]
 func (h *Handler) WSGeneral(ctx *gin.Context) {
 	state := h.app.State.GetState()
-	fmt.Println(state)
+	//fmt.Println(state)
 	h.app.Hub.HandleWS(ctx.Writer, ctx.Request, "general", state.Workcenters)
 }
 
