@@ -2,6 +2,7 @@ package operator
 
 import (
 	"actions-service/internal/models"
+	"errors"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -39,6 +40,15 @@ func (h *Handler) ClockIn(c *gin.Context) {
 		return
 	}	
 	if err := h.service.ClockIn(c.Request.Context(), req.OperatorID.String(), req.WorkcenterID.String()); err != nil {
+		var svcErr *ServiceError
+        if errors.As(err, &svcErr) {
+            c.JSON(svcErr.StatusCode, models.ResponseMessage{
+                Result:  "error",
+                Message: svcErr.Message,
+                Content: svcErr.Error(),
+            })
+            return
+        }
 		c.JSON(http.StatusInternalServerError, models.ResponseMessage{
 			Result:  "error",
 			Message: "Failed to register clock in",
@@ -74,6 +84,17 @@ func (h *Handler) ClockOut(c *gin.Context) {
 		return
 	}
 	if err := h.service.ClockOut(c.Request.Context(), req.OperatorID.String(), req.WorkcenterID.String()); err != nil {
+
+		var svcErr *ServiceError
+        if errors.As(err, &svcErr) {
+            c.JSON(svcErr.StatusCode, models.ResponseMessage{
+                Result:  "error",
+                Message: svcErr.Message,
+                Content: svcErr.Error(),
+            })
+            return
+        }
+
 		c.JSON(http.StatusInternalServerError, models.ResponseMessage{
 			Result:  "error",
 			Message: "Failed to register clock out",
