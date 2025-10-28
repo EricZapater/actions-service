@@ -134,7 +134,7 @@ func (s *service) ClockIn(ctx context.Context, operatorID, workcenterID string)e
 			Type string `json:"type"`
 			Payload interface{} `json:"payload"`
 		}{
-			Type: "workcenter",
+			Type: "Workcenter",
 			Payload: state.Workcenters[wc.WorkcenterID.String()],
 		})
 
@@ -143,7 +143,7 @@ func (s *service) ClockIn(ctx context.Context, operatorID, workcenterID string)e
 			Type string `json:"type"`
 			Payload interface{} `json:"payload"`
 		}{
-			Type: "workcenter_update",
+			Type: "Workcenter",
 			Payload: state.Workcenters,
 		})
 	return nil
@@ -197,7 +197,7 @@ func (s *service) ClockOut(ctx context.Context, operatorID, workcenterID string)
 			Type string `json:"type"`
 			Payload interface{} `json:"payload"`
 		}{
-			Type: "workcenter",
+			Type: "Workcenter",
 			Payload: state.Workcenters[wc.WorkcenterID.String()],
 		})
 
@@ -206,7 +206,7 @@ func (s *service) ClockOut(ctx context.Context, operatorID, workcenterID string)
 			Type string `json:"type"`
 			Payload interface{} `json:"payload"`
 		}{
-			Type: "workcenter_update",
+			Type: "Workcenter",
 			Payload: state.Workcenters,
 		})
 	return nil

@@ -175,7 +175,7 @@ func(s *service) SetCurrentShift(ctx context.Context)error{
 			Type string `json:"type"`
 			Payload interface{} `json:"payload"`
 		}{
-			Type: "workcenter",
+			Type: "Workcenter",
 			Payload: state.Workcenters,
 		})
 	}
