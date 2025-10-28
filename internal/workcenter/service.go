@@ -167,7 +167,7 @@ func(s *service) SetCurrentShift(ctx context.Context)error{
 		}
 	}
 	if hasChanged {
-		workcenters, err := s.repo.List(ctx)
+		state := s.repo.state.GetState()
 		if err != nil {
 			return fmt.Errorf("error listing workcenters: %w", err)
 		}
@@ -175,8 +175,8 @@ func(s *service) SetCurrentShift(ctx context.Context)error{
 			Type string `json:"type"`
 			Payload interface{} `json:"payload"`
 		}{
-			Type: "workcenter_update",
-			Payload: workcenters,
+			Type: "workcenter",
+			Payload: state.Workcenters,
 		})
 	}
 	return nil

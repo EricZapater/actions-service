@@ -128,12 +128,23 @@ func (s *service) ClockIn(ctx context.Context, operatorID, workcenterID string)e
 	if err := s.repo.SetWorkcenterDTO(ctx, wc.WorkcenterID.String(), *wc); err != nil {
 		return fmt.Errorf("error updating workcenter %s: %w", wc.WorkcenterID.String(), err)
 	}
+	state := s.repo.state.GetState()
+	
 	s.hub.Broadcast(wc.WorkcenterID.String(), struct {
 			Type string `json:"type"`
 			Payload interface{} `json:"payload"`
 		}{
+			Type: "workcenter",
+			Payload: state.Workcenters[wc.WorkcenterID.String()],
+		})
+
+		
+	s.hub.Broadcast("general", struct {
+			Type string `json:"type"`
+			Payload interface{} `json:"payload"`
+		}{
 			Type: "workcenter_update",
-			Payload: wc,
+			Payload: state.Workcenters,
 		})
 	return nil
 }
@@ -180,12 +191,23 @@ func (s *service) ClockOut(ctx context.Context, operatorID, workcenterID string)
 	if err := s.repo.SetWorkcenterDTO(ctx, wc.WorkcenterID.String(), *wc); err != nil {
 		return fmt.Errorf("error updating workcenter %s: %w", wc.WorkcenterID.String(), err)
 	}
+	state := s.repo.state.GetState()
+
 	s.hub.Broadcast(wc.WorkcenterID.String(), struct {
 			Type string `json:"type"`
 			Payload interface{} `json:"payload"`
 		}{
+			Type: "workcenter",
+			Payload: state.Workcenters[wc.WorkcenterID.String()],
+		})
+
+		
+	s.hub.Broadcast("general", struct {
+			Type string `json:"type"`
+			Payload interface{} `json:"payload"`
+		}{
 			Type: "workcenter_update",
-			Payload: wc,
+			Payload: state.Workcenters,
 		})
 	return nil
 }

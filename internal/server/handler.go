@@ -75,16 +75,6 @@ func (h *Handler) WSGeneral(ctx *gin.Context) {
 									})
 }
 
-/*
-s.hub.Broadcast(wc.WorkcenterID.String(), struct {
-			Type string `json:"type"`
-			Payload interface{} `json:"payload"`
-		}{
-			Type: "workcenter_update",
-			Payload: wc,
-		})
-*/
-
 // WSWorkcenter godoc
 // @Summary WebSocket de connexió per workcenter
 // @Description Estableix una connexió WebSocket per rebre actualitzacions específiques d'un workcenter
