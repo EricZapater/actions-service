@@ -66,7 +66,8 @@ func (h *Hub) run() {
 			}
 			h.mu.Lock()
 			for c := range h.clients {
-				if c.channel == msg.Channel || msg.Channel == "general" {
+				// Només envia el missatge si el canal coincideix exactament
+				if c.channel == msg.Channel {
 					if err := c.conn.WriteMessage(websocket.TextMessage, data); err != nil {
 						c.conn.Close()
 						delete(h.clients, c)
@@ -105,11 +106,30 @@ func (h *Hub) HandleWS(w http.ResponseWriter, r *http.Request, channel string, i
 	}
 }
 
-// difondre missatge a un canal concret o a "general"
+// difondre missatge a un canal concret
 func (h *Hub) Broadcast(channel string, msg interface{}) {
 	select {
 	case h.broadcast <- Message{Channel: channel, Data: msg}:
 	default:
 		log.Println("broadcast channel full, dropping message")
+	}
+}
+
+// BroadcastToAll difon un missatge a tots els clients, independentment del canal
+func (h *Hub) BroadcastToAll(msg interface{}) {
+	data, err := json.Marshal(msg)
+	if err != nil {
+		log.Printf("error marshalling message: %v", err)
+		return
+	}
+	
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	
+	for c := range h.clients {
+		if err := c.conn.WriteMessage(websocket.TextMessage, data); err != nil {
+			c.conn.Close()
+			delete(h.clients, c)
+		}
 	}
 }

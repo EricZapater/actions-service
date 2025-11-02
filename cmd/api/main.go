@@ -4,7 +4,6 @@ import (
 	"actions-service/internal/server"
 	"actions-service/internal/setup"
 	"context"
-	"fmt"
 	"log"
 	"os"
 	"os/signal"
@@ -37,7 +36,6 @@ func main() {
 		for {
 			select {
 			case <-ticker.C:
-				fmt.Println("ticker")
 				//workcenterService.CheckWorkcenterShift(ctx)
 				app.Services.WorkcenterService.SetCurrentShift(ctx)
 			case <-stopChan:

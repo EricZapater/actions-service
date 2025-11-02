@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"time"
 )
@@ -40,7 +41,7 @@ func (c *httpBackendClient) DoGetRequest(ctx context.Context,  path string)(*htt
 
 func (c *httpBackendClient) DoPostRequest(ctx context.Context,  path string, body interface{}) (*http.Response, error) {
 	url := fmt.Sprintf("%s%s", c.baseUrl, path)
-	//log.Println("url: ", url)
+	log.Println("url: ", url)
 	var req *http.Request
 	var err error
 
@@ -49,7 +50,7 @@ func (c *httpBackendClient) DoPostRequest(ctx context.Context,  path string, bod
 		if err != nil {
 			return nil, err
 		}
-		//log.Printf("JSON sent: %s", string(jsonBody))
+		log.Printf("JSON sent: %s", string(jsonBody))
 		req, err = http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(jsonBody))
 		if err != nil {
 			return nil, err

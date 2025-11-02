@@ -7,25 +7,25 @@ import (
 )
 
 type WorkcenterDTO struct {
-	WorkcenterID                uuid.UUID      `json:"WorkcenterId"`
-	WorkcenterName              string         `json:"WorkcenterName"`
-	WorkcenterDescription       string         `json:"WorkcenterDescription"`
-	AreaID                      uuid.UUID      `json:"AreaId"`
-	AreaDescription             string         `json:"AreaDescription"`
-	ShiftID                     uuid.UUID      `json:"ShiftId"`
-	ShiftName                   string         `json:"ShiftName"`
-	ShiftDetailId               uuid.UUID      `json:"ShiftDetailId"`
-	ShiftDetailStartTime        CustomTime     `json:"ShiftDetailStartTime"`
-	ShiftDetailEndTime          CustomTime     `json:"ShiftDetailEndTime"`
-	ShiftDetailIsProductiveTime bool           `json:"ShiftDetailsIsProductiveTime"`
-	StatusID                    uuid.UUID      `json:"StatusId"`
-	StatusName                  string         `json:"StatusName"`
-	StatusOperatorsAllowed      bool           `json:"StatusOperatorsAllowed"`
-	StatusClosed                bool           `json:"StatusClosed"`
-	StatusStopped               bool           `json:"StatusStopped"`
-	StatusColor                 string         `json:"StatusColor"`
-	StatusStartTime             time.Time      `json:"StatusStartTime"`
-	Operators                   []OperatorDTO  `json:"Operators"`
+	WorkcenterID                uuid.UUID      `json:"workcenterId"`
+	WorkcenterName              string         `json:"workcenterName"`
+	WorkcenterDescription       string         `json:"workcenterDescription"`
+	AreaID                      uuid.UUID      `json:"areaId"`
+	AreaDescription             string         `json:"areaDescription"`
+	ShiftID                     uuid.UUID      `json:"shiftId"`
+	ShiftName                   string         `json:"shiftName"`
+	ShiftDetailId               uuid.UUID      `json:"shiftDetailId"`
+	ShiftDetailStartTime        CustomTime     `json:"shiftDetailStartTime"`
+	ShiftDetailEndTime          CustomTime     `json:"shiftDetailEndTime"`
+	ShiftDetailIsProductiveTime bool           `json:"shiftDetailsIsProductiveTime"`
+	StatusID                    uuid.UUID      `json:"statusId"`
+	StatusName                  string         `json:"statusName"`
+	StatusOperatorsAllowed      bool           `json:"statusOperatorsAllowed"`
+	StatusClosed                bool           `json:"statusClosed"`
+	StatusStopped               bool           `json:"statusStopped"`
+	StatusColor                 string         `json:"statusColor"`
+	StatusStartTime             time.Time      `json:"statusStartTime"`
+	Operators                   []OperatorDTO  `json:"operators"`
 	//WorkOrders                  []WorkOrderDTO `json:"Workorders"`
 }
 
@@ -35,7 +35,7 @@ type Workcenter struct {
 	Description string    `json:"description"`
 	AreaId      uuid.UUID `json:"areaId"`
 	ShiftId     uuid.UUID `json:"shiftId"`
-	Disabled    bool      `json:"Disabled"`
+	Disabled    bool      `json:"disabled"`
 }
 
 type CreateWorkcenterShiftDTO struct {

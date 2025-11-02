@@ -1,0 +1,258 @@
+{
+    "schemes": [
+        "http",
+        "https"
+    ],
+    "swagger": "2.0",
+    "info": {
+        "description": "API per gestionar operadors i workcenters",
+        "title": "Actions Service API",
+        "termsOfService": "http://swagger.io/terms/",
+        "contact": {
+            "name": "API Support",
+            "url": "http://www.swagger.io/support",
+            "email": "support@swagger.io"
+        },
+        "license": {
+            "name": "Apache 2.0",
+            "url": "http://www.apache.org/licenses/LICENSE-2.0.html"
+        },
+        "version": "1.0"
+    },
+    "host": "localhost:8080",
+    "basePath": "/api",
+    "paths": {
+        "/healthcheck": {
+            "get": {
+                "description": "Retorna l'estat de salut del servidor i l'estat actual del sistema",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "health"
+                ],
+                "summary": "Comprova l'estat del servei",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.ResponseMessage"
+                        }
+                    }
+                }
+            }
+        },
+        "/operator/clockin": {
+            "post": {
+                "description": "Registra l'hora d'entrada d'un operador en un workcenter específic",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "operator"
+                ],
+                "summary": "Registra l'entrada d'un operador",
+                "parameters": [
+                    {
+                        "description": "Dades del clock in",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.OperatorRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.ResponseMessage"
+                        }
+                    },
+                    "400": {
+                        "description": "Request invàlid",
+                        "schema": {
+                            "$ref": "#/definitions/models.ResponseMessage"
+                        }
+                    },
+                    "500": {
+                        "description": "Error intern del servidor",
+                        "schema": {
+                            "$ref": "#/definitions/models.ResponseMessage"
+                        }
+                    }
+                }
+            }
+        },
+        "/operator/clockout": {
+            "post": {
+                "description": "Registra l'hora de sortida d'un operador d'un workcenter específic",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "operator"
+                ],
+                "summary": "Registra la sortida d'un operador",
+                "parameters": [
+                    {
+                        "description": "Dades del clock out",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.OperatorRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.ResponseMessage"
+                        }
+                    },
+                    "400": {
+                        "description": "Request invàlid",
+                        "schema": {
+                            "$ref": "#/definitions/models.ResponseMessage"
+                        }
+                    },
+                    "500": {
+                        "description": "Error intern del servidor",
+                        "schema": {
+                            "$ref": "#/definitions/models.ResponseMessage"
+                        }
+                    }
+                }
+            }
+        },
+        "/reload": {
+            "get": {
+                "description": "Recarrega els DTOs de shifts, operadors i workcenters i retorna l'estat actualitzat",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "system"
+                ],
+                "summary": "Recarrega els DTOs del sistema",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.ResponseMessage"
+                        }
+                    }
+                }
+            }
+        },
+        "/ws/general": {
+            "get": {
+                "description": "Estableix una connexió WebSocket per rebre actualitzacions generals del sistema",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "websocket"
+                ],
+                "summary": "WebSocket de connexió general",
+                "responses": {
+                    "101": {
+                        "description": "Switching Protocols",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/ws/workcenter/{id}": {
+            "get": {
+                "description": "Estableix una connexió WebSocket per rebre actualitzacions específiques d'un workcenter",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "websocket"
+                ],
+                "summary": "WebSocket de connexió per workcenter",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ID del Workcenter",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "101": {
+                        "description": "Switching Protocols",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "404": {
+                        "description": "Workcenter no trobat",
+                        "schema": {
+                            "$ref": "#/definitions/models.ResponseMessage"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "models.OperatorRequest": {
+            "type": "object",
+            "required": [
+                "operatorId",
+                "workcenterId"
+            ],
+            "properties": {
+                "operatorId": {
+                    "type": "string",
+                    "example": "123e4567-e89b-12d3-a456-426614174001"
+                },
+                "workcenterId": {
+                    "type": "string",
+                    "example": "123e4567-e89b-12d3-a456-426614174000"
+                }
+            }
+        },
+        "models.ResponseMessage": {
+            "type": "object",
+            "properties": {
+                "content": {},
+                "message": {
+                    "type": "string",
+                    "example": "Action completed successfully"
+                },
+                "result": {
+                    "type": "string",
+                    "example": "success"
+                }
+            }
+        }
+    }
+}

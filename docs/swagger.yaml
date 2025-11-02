@@ -1,0 +1,175 @@
+basePath: /api
+definitions:
+  models.OperatorRequest:
+    properties:
+      operatorId:
+        example: 123e4567-e89b-12d3-a456-426614174001
+        type: string
+      workcenterId:
+        example: 123e4567-e89b-12d3-a456-426614174000
+        type: string
+    required:
+    - operatorId
+    - workcenterId
+    type: object
+  models.ResponseMessage:
+    properties:
+      content: {}
+      message:
+        example: Action completed successfully
+        type: string
+      result:
+        example: success
+        type: string
+    type: object
+host: localhost:8080
+info:
+  contact:
+    email: support@swagger.io
+    name: API Support
+    url: http://www.swagger.io/support
+  description: API per gestionar operadors i workcenters
+  license:
+    name: Apache 2.0
+    url: http://www.apache.org/licenses/LICENSE-2.0.html
+  termsOfService: http://swagger.io/terms/
+  title: Actions Service API
+  version: "1.0"
+paths:
+  /healthcheck:
+    get:
+      consumes:
+      - application/json
+      description: Retorna l'estat de salut del servidor i l'estat actual del sistema
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.ResponseMessage'
+      summary: Comprova l'estat del servei
+      tags:
+      - health
+  /operator/clockin:
+    post:
+      consumes:
+      - application/json
+      description: Registra l'hora d'entrada d'un operador en un workcenter específic
+      parameters:
+      - description: Dades del clock in
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.OperatorRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.ResponseMessage'
+        "400":
+          description: Request invàlid
+          schema:
+            $ref: '#/definitions/models.ResponseMessage'
+        "500":
+          description: Error intern del servidor
+          schema:
+            $ref: '#/definitions/models.ResponseMessage'
+      summary: Registra l'entrada d'un operador
+      tags:
+      - operator
+  /operator/clockout:
+    post:
+      consumes:
+      - application/json
+      description: Registra l'hora de sortida d'un operador d'un workcenter específic
+      parameters:
+      - description: Dades del clock out
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.OperatorRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.ResponseMessage'
+        "400":
+          description: Request invàlid
+          schema:
+            $ref: '#/definitions/models.ResponseMessage'
+        "500":
+          description: Error intern del servidor
+          schema:
+            $ref: '#/definitions/models.ResponseMessage'
+      summary: Registra la sortida d'un operador
+      tags:
+      - operator
+  /reload:
+    get:
+      consumes:
+      - application/json
+      description: Recarrega els DTOs de shifts, operadors i workcenters i retorna
+        l'estat actualitzat
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.ResponseMessage'
+      summary: Recarrega els DTOs del sistema
+      tags:
+      - system
+  /ws/general:
+    get:
+      consumes:
+      - application/json
+      description: Estableix una connexió WebSocket per rebre actualitzacions generals
+        del sistema
+      produces:
+      - application/json
+      responses:
+        "101":
+          description: Switching Protocols
+          schema:
+            type: string
+      summary: WebSocket de connexió general
+      tags:
+      - websocket
+  /ws/workcenter/{id}:
+    get:
+      consumes:
+      - application/json
+      description: Estableix una connexió WebSocket per rebre actualitzacions específiques
+        d'un workcenter
+      parameters:
+      - description: ID del Workcenter
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "101":
+          description: Switching Protocols
+          schema:
+            type: string
+        "404":
+          description: Workcenter no trobat
+          schema:
+            $ref: '#/definitions/models.ResponseMessage'
+      summary: WebSocket de connexió per workcenter
+      tags:
+      - websocket
+schemes:
+- http
+- https
+swagger: "2.0"

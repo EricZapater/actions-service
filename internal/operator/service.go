@@ -115,22 +115,36 @@ func (s *service) ClockIn(ctx context.Context, operatorID, workcenterID string)e
 		Timestamp: now.Format("2006-01-02T15:04:05"),
 	}
 	url := "/api/WorkcenterShift/Operator/in"
-	response, err := s.client.DoPostRequest(ctx, url, clockindto)
+	response, err := s.client.DoPostRequest(ctx, url, clockindto)	
 	if err != nil || response.StatusCode > 299 {
 		log.Printf("Something went wrong calling the backend %v", err)
-		return err
+		return NewServiceError(response.StatusCode, response.Status, err)
 	}
+	
 	//Fer el set al repo PERO del JSON sencer del workcenter
+	operator.OperatorStartTime = now.Format("2006-01-02T15:04:05")
 	wc.Operators = append(wc.Operators, operator)
+	fmt.Println(operator)
 	if err := s.repo.SetWorkcenterDTO(ctx, wc.WorkcenterID.String(), *wc); err != nil {
 		return fmt.Errorf("error updating workcenter %s: %w", wc.WorkcenterID.String(), err)
 	}
+	state := s.repo.state.GetState()
+	
 	s.hub.Broadcast(wc.WorkcenterID.String(), struct {
 			Type string `json:"type"`
 			Payload interface{} `json:"payload"`
 		}{
-			Type: "workcenter_update",
-			Payload: wc,
+			Type: "Workcenter",
+			Payload: state.Workcenters[wc.WorkcenterID.String()],
+		})
+
+		
+	s.hub.Broadcast("general", struct {
+			Type string `json:"type"`
+			Payload interface{} `json:"payload"`
+		}{
+			Type: "Workcenter",
+			Payload: state.Workcenters,
 		})
 	return nil
 }
@@ -160,7 +174,7 @@ func (s *service) ClockOut(ctx context.Context, operatorID, workcenterID string)
 	response, err := s.client.DoPostRequest(ctx, url, clockindto)
 	if err != nil || response.StatusCode > 299 {
 		log.Printf("Something went wrong calling the backend %v", err)
-		return err
+		return NewServiceError(response.StatusCode, response.Status, err)
 	}
 	operators := wc.Operators
 	filtered := make([]models.OperatorDTO, 0, len(operators))
@@ -177,12 +191,23 @@ func (s *service) ClockOut(ctx context.Context, operatorID, workcenterID string)
 	if err := s.repo.SetWorkcenterDTO(ctx, wc.WorkcenterID.String(), *wc); err != nil {
 		return fmt.Errorf("error updating workcenter %s: %w", wc.WorkcenterID.String(), err)
 	}
+	state := s.repo.state.GetState()
+
 	s.hub.Broadcast(wc.WorkcenterID.String(), struct {
 			Type string `json:"type"`
 			Payload interface{} `json:"payload"`
 		}{
-			Type: "workcenter_update",
-			Payload: wc,
+			Type: "Workcenter",
+			Payload: state.Workcenters[wc.WorkcenterID.String()],
+		})
+
+		
+	s.hub.Broadcast("general", struct {
+			Type string `json:"type"`
+			Payload interface{} `json:"payload"`
+		}{
+			Type: "Workcenter",
+			Payload: state.Workcenters,
 		})
 	return nil
 }
