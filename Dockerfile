@@ -28,6 +28,8 @@ RUN apk add --no-cache tzdata wget ca-certificates && \
     echo 'https://packages.doppler.com/public/cli/alpine/any-version/main' | tee -a /etc/apk/repositories && \
     apk add doppler
 
+
+
 ENV TZ=Europe/Madrid
 RUN cp /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
