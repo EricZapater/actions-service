@@ -60,3 +60,10 @@ func(r *RedisRepo) List(ctx context.Context) ([]models.WorkcenterDTO, error){
 	}
 	return workcenters, nil
 }
+
+func(r *RedisRepo) Delete(ctx context.Context, id string) error{
+	if err := r.client.Del(ctx, id).Err(); err != nil {
+		return err
+	}
+	return nil
+}

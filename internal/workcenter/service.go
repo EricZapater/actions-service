@@ -63,6 +63,10 @@ func (s *service) BuildDTO(ctx context.Context)error {
 	for _, workcenter := range workcenters {
 		if workcenter.ShiftId == uuid.Nil {
 			//esborrar-lo del redis i de la memoria
+			err := s.repo.Delete(ctx, workcenter.Id.String())
+			if err != nil {
+				log.Printf("error deleting workcenter %s: %v", workcenter.Id.String(), err)
+			}
 			continue
 		}
 		//montar el DTO
@@ -96,8 +100,28 @@ func (s *service) BuildDTO(ctx context.Context)error {
 		if source == models.SourceMemory {
 			//comprovar areaid, shiftid
 			if wc.AreaID != WorkcentersDTO.AreaID || wc.ShiftID != WorkcentersDTO.ShiftID {	
-				//Ull!! aqui caldria fer una crida al back per fer el nou shift
+				// Nou shift
+				now := time.Now()
+				shiftDetail, err := s.shiftService.FindCurrentShift(ctx, now, wc.ShiftID)
+				if err != nil {
+					log.Printf("error finding current shift for workcenter %s: %v", wc.WorkcenterID.String(), err)
+					continue
+				}
+				
+				request := models.CreateWorkcenterShiftDTO{
+					WorkcenterID:  WorkcentersDTO.WorkcenterID,
+					ShiftDetailId: shiftDetail.ID,
+					StartTime:     now.Format("2006-01-02T15:04:05"),
+				}
+				if err := s.createWorkcenterShift(ctx, request); err != nil {
+					return fmt.Errorf("error creating workcenter shift for workcenter %s: %w", WorkcentersDTO.WorkcenterID.String(), err)
+				}
 
+				WorkcentersDTO.ShiftDetailId = shiftDetail.ID
+				WorkcentersDTO.ShiftDetailStartTime = models.CustomTime{Time: now}
+				WorkcentersDTO.ShiftDetailIsProductiveTime = shiftDetail.IsProductiveTime
+				
+				//Estat
 				WorkcentersDTO.StatusID = wc.StatusID
 				WorkcentersDTO.StatusName = wc.StatusName
 				WorkcentersDTO.StatusOperatorsAllowed = wc.StatusOperatorsAllowed

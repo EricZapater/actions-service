@@ -77,3 +77,18 @@ func(r *Repository) List(ctx context.Context) ([]models.WorkcenterDTO, error){
 	}
 	return workcenters, nil
 }
+
+func (r *Repository) Delete(ctx context.Context, id string) error{
+	g, ctx := errgroup.WithContext(ctx)
+	g.Go(func() error {
+		return r.memoryRepo.Delete(ctx, id)
+	})
+
+	g.Go(func() error {
+		return r.redisRepo.Delete(ctx, id)
+	})
+	if err := g.Wait(); err != nil {
+		return err
+	}
+	return nil
+}

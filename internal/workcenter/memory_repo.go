@@ -32,3 +32,10 @@ func(r *MemoryRepo) FindByID(ctx context.Context, id string) (models.WorkcenterD
 	}
 	return workcenter, nil
 }
+
+func(r *MemoryRepo) Delete(ctx context.Context, id string) error{
+	r.state.Mu.Lock()
+	defer r.state.Mu.Unlock()
+	delete(r.state.Workcenters, id)
+	return nil
+}

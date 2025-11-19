@@ -10,6 +10,7 @@ type State struct {
 	Workcenters map[string]models.WorkcenterDTO
 	Shifts map[string]models.ShiftDTO
 	Operators map[string]models.OperatorDTO
+	Statuses map[string]models.StatusDTO
 }
 
 func New() *State{
@@ -17,6 +18,7 @@ func New() *State{
 		Workcenters: make(map[string]models.WorkcenterDTO),
 		Shifts: make(map[string]models.ShiftDTO),
 		Operators: make(map[string]models.OperatorDTO),
+		Statuses: make(map[string]models.StatusDTO),
 	}
 }
 

@@ -13,6 +13,7 @@ import (
 
 
 func main() {	
+	startTime := time.Now()
 	ctx := context.Background()
 	app, err := setup.NewApp(ctx)
 	if err != nil {
@@ -22,10 +23,13 @@ func main() {
 	app.Services.ShiftService.BuildDTO(ctx)
 	app.Services.OperatorService.BuilDTO(ctx)
 	app.Services.WorkcenterService.BuildDTO(ctx)	
+	app.Services.StatusService.BuildDTO(ctx)
+	
 	
 	
 	go server.Run(app)
-
+	endTime := time.Now()	
+	log.Printf("Startup time: %v", endTime.Sub(startTime))
 
 	ticker := time.NewTicker(1*time.Minute)
 	defer ticker.Stop()

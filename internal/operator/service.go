@@ -54,18 +54,18 @@ func (s *service) BuilDTO(ctx context.Context)error {
 	}
 	
 	url = "/api/OperatorType"
-	response, err = s.client.DoGetRequest(ctx, url)
+	responseType, err := s.client.DoGetRequest(ctx, url)
 	if err != nil {
 		return err
 	}
-	defer response.Body.Close()
+	defer responseType.Body.Close()
 
-	if response.StatusCode > 299 {
-		return fmt.Errorf("failed to get operators: %s", response.Status)
+	if responseType.StatusCode > 299 {
+		return fmt.Errorf("failed to get operators: %s", responseType.Status)
 	}
 
 	var operatorTypes []models.OperatorTypeResponse
-	err = json.NewDecoder(response.Body).Decode(&operatorTypes)
+	err = json.NewDecoder(responseType.Body).Decode(&operatorTypes)
 	if err != nil {
 		return  err
 	}	

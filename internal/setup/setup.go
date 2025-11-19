@@ -6,6 +6,7 @@ import (
 	"actions-service/internal/operator"
 	"actions-service/internal/shift"
 	"actions-service/internal/state"
+	"actions-service/internal/status"
 	"actions-service/internal/workcenter"
 	"actions-service/internal/ws"
 	"context"
@@ -17,10 +18,12 @@ type Services struct {
 	ShiftService shift.Service
 	WorkcenterService workcenter.Service
 	OperatorService operator.Service
+	StatusService status.Service
 }
 
 type Handlers struct {
 	OperatorHandler *operator.Handler
+	StatusHandler *status.Handler
 }
 
 type App struct {
@@ -59,15 +62,20 @@ func NewApp(ctx context.Context) (*App, error) {
 	operatorService := operator.NewOperatorService(client, *operatorRepo, workcenterService, hub)
 	operatorHandler := operator.NewHandler(operatorService)
 
+    statusRepo := status.NewStatusRepository(state, redisClient)
+    statusService := status.NewStatusService(client, *statusRepo, workcenterService, hub)
+	statusHandler := status.NewHandler(statusService)
 
 	services := Services{
 		ShiftService: shiftService,
 		WorkcenterService: workcenterService,
 		OperatorService: operatorService,
+		StatusService: statusService,
 	}
 
 	handlers := Handlers{
 		OperatorHandler: operatorHandler,
+		StatusHandler: statusHandler,
 	}
 
 	return &App{
