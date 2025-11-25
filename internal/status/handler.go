@@ -27,8 +27,13 @@ func (h *Handler) StatusIn(c *gin.Context) {
 			Content: err.Error(),
 		})
 		return
-	}
-	if err := h.service.StatusIn(c.Request.Context(), req.WorkcenterID.String(), req.StatusID.String()); err != nil {
+	}	
+	var statusReasonId *string
+	if req.StatusReasonId != nil {
+		reasonStr := req.StatusReasonId.String()
+		statusReasonId = &reasonStr
+	}	
+	if err := h.service.StatusIn(c.Request.Context(), req.WorkcenterID.String(), req.StatusID.String(), statusReasonId); err != nil {
 		var svcErr *ServiceError
 		if errors.As(err, &svcErr) {
 			c.JSON(svcErr.StatusCode, models.ResponseMessage{

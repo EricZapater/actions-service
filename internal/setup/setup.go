@@ -63,7 +63,7 @@ func NewApp(ctx context.Context) (*App, error) {
 	operatorHandler := operator.NewHandler(operatorService)
 
     statusRepo := status.NewStatusRepository(state, redisClient)
-    statusService := status.NewStatusService(client, *statusRepo, workcenterService, hub)
+    statusService := status.NewStatusService(client, *statusRepo, workcenterService, operatorService, hub)
 	statusHandler := status.NewHandler(statusService)
 
 	services := Services{

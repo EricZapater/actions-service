@@ -108,7 +108,7 @@ func TestBuildDTOStoresStatuses(t *testing.T) {
 		Cost:         10,
 	}}))
 
-	service := NewStatusService(client, *repo, nil, nil)
+	service := NewStatusService(client, *repo, nil, nil, nil)
 	if err := service.BuildDTO(ctx); err != nil {
 		t.Fatalf("BuildDTO failed: %v", err)
 	}
@@ -155,8 +155,8 @@ func TestStatusInUpdatesWorkcenter(t *testing.T) {
 
 	hub := ws.NewHub()
 
-	service := NewStatusService(client, *repo, port, hub)
-	if err := service.StatusIn(ctx, workcenterID.String(), statusID.String()); err != nil {
+	service := NewStatusService(client, *repo, port, nil, hub)
+	if err := service.StatusIn(ctx, workcenterID.String(), statusID.String(), nil); err != nil {
 		t.Fatalf("StatusIn failed: %v", err)
 	}
 

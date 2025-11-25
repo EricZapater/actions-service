@@ -19,6 +19,7 @@ type WorkcenterDTO struct {
 	ShiftDetailEndTime          CustomTime     `json:"shiftDetailEndTime"`
 	ShiftDetailIsProductiveTime bool           `json:"shiftDetailsIsProductiveTime"`
 	StatusID                    uuid.UUID      `json:"statusId"`
+	StatusReasonId *uuid.UUID `json:"statusReasonId"`
 	StatusName                  string         `json:"statusName"`
 	StatusOperatorsAllowed      bool           `json:"statusOperatorsAllowed"`
 	StatusClosed                bool           `json:"statusClosed"`
