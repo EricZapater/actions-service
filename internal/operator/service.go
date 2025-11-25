@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"net/http"
 	"time"
 
 	"github.com/google/uuid"
@@ -98,8 +99,10 @@ func (s *service) ClockIn(ctx context.Context, operatorID, workcenterID string)e
 	wc, err := s.port.GetWorkcenterDTO(ctx, workcenterID)
 	if err != nil {
 		return fmt.Errorf("error checking workcenter existence: %w", err)
-	}
-	
+	}		
+	if !wc.StatusOperatorsAllowed {				
+		return NewServiceError(http.StatusForbidden, "operators not allowed", nil)		
+	}	
 	operator, _, err := s.repo.FindByID(ctx, operatorID)
 	if err != nil {
 		if err == ErrOperatorNotFound {
