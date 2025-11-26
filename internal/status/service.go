@@ -112,6 +112,8 @@ func (s *service) StatusIn(ctx context.Context, workcenterID, statusID string, r
         for _, operator := range wc.Operators {            
             s.operatorPort.ClockOut(ctx, operator.OperatorID.String(), workcenterID)
         }
+        // Clear operators from memory to avoid overwriting the ClockOut changes
+        wc.Operators = []models.OperatorDTO{}
     }
 
     // backend call
