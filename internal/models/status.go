@@ -5,7 +5,7 @@ import "github.com/google/uuid"
 type StatusInRequest struct {
 	StatusID     uuid.UUID `json:"machineStatusId"`
 	WorkcenterID uuid.UUID `json:"workcenterId"`
-	StatusReasonId *uuid.UUID `json:"statusReasonId"`
+	StatusReasonId *uuid.UUID `json:"machineStatusReasonId"`
 	Timestamp	string    `json:"timestamp"`
 }
 
