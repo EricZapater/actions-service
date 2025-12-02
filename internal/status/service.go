@@ -142,7 +142,7 @@ func (s *service) StatusIn(ctx context.Context, workcenterID, statusID string, r
 
     // update workcenter status fields
     wc.StatusID = st.StatusId
-    wc.StatusReasonId = st.StatusReasonId
+    wc.StatusReasonId = req.StatusReasonId
     wc.StatusName = st.Description
     wc.StatusOperatorsAllowed = st.OperatorsAllowed
     wc.StatusClosed = st.Closed
