@@ -5,12 +5,14 @@ import "github.com/google/uuid"
 type StatusInRequest struct {
 	StatusID     uuid.UUID `json:"machineStatusId"`
 	WorkcenterID uuid.UUID `json:"workcenterId"`
+	StatusReasonId *uuid.UUID `json:"machineStatusReasonId"`
 	Timestamp	string    `json:"timestamp"`
 }
 
 type StatusDTORequest struct {
 	StatusID     uuid.UUID `json:"statusId"`
 	WorkcenterID uuid.UUID `json:"workcenterId"`
+	StatusReasonId *uuid.UUID `json:"statusReasonId"`
 }
 
 type StatusResponse struct {
@@ -31,6 +33,7 @@ type StatusCostResponse struct {
 type StatusDTO struct {
 	WorkcenterId uuid.UUID `json:"workcenterId"`
 	StatusId uuid.UUID `json:"statusId"`
+	StatusReasonId *uuid.UUID `json:"statusReasonId"`
 	Description string `json:"description"`
 	Color string `json:"color"`
 	Stopped bool `json:"stopped"`

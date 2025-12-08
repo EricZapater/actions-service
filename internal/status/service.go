@@ -14,21 +14,23 @@ import (
 
 type Service interface {
 	BuildDTO(ctx context.Context)error
-    StatusIn(ctx context.Context, workcenterID, statusID string) error
+    StatusIn(ctx context.Context, workcenterID, statusID string, reasonID *string) error
 }
 
 type service struct {
 	client clients.HttpBackendClient	
     hub *ws.Hub
     repo Repository
-    port WorkcenterPort
+    workcenterPort WorkcenterPort
+    operatorPort OperatorPort
 }
 
-func NewStatusService(client clients.HttpBackendClient, repo Repository, port WorkcenterPort, hub *ws.Hub) Service{
+func NewStatusService(client clients.HttpBackendClient, repo Repository, workcenterPort WorkcenterPort, operatorPort OperatorPort, hub *ws.Hub) Service{
 	return &service{
 		client: client,
         repo: repo,
-        port: port,
+        workcenterPort: workcenterPort,
+        operatorPort: operatorPort,
 		hub: hub,
 	}
 }
@@ -90,8 +92,8 @@ func(s *service) BuildDTO(ctx context.Context)error{
     return nil
 }
 
-func (s *service) StatusIn(ctx context.Context, workcenterID, statusID string) error {
-    wc, err := s.port.GetWorkcenterDTO(ctx, workcenterID)
+func (s *service) StatusIn(ctx context.Context, workcenterID, statusID string, reasonID *string) error {
+    wc, err := s.workcenterPort.GetWorkcenterDTO(ctx, workcenterID)
     if err != nil {
         return fmt.Errorf("error checking workcenter existence: %w", err)
     }
@@ -105,12 +107,26 @@ func (s *service) StatusIn(ctx context.Context, workcenterID, statusID string) e
         return fmt.Errorf("status %s for workcenter %s not found: %w", statusID, workcenterID, err)
     }
 
+    if !st.OperatorsAllowed {
+        //operators out
+        for _, operator := range wc.Operators {            
+            s.operatorPort.ClockOut(ctx, operator.OperatorID.String(), workcenterID)
+        }
+        // Clear operators from memory to avoid overwriting the ClockOut changes
+        wc.Operators = []models.OperatorDTO{}
+    }
+
     // backend call
     req := models.StatusInRequest{}
     req.WorkcenterID = wc.WorkcenterID
     parsed, err := uuid.Parse(statusID)
     if err != nil { return fmt.Errorf("invalid statusID %s: %w", statusID, err) }
     req.StatusID = parsed
+    if reasonID != nil {
+        parsedReason, err := uuid.Parse(*reasonID)
+        if err != nil { return fmt.Errorf("invalid reasonID %s: %w", *reasonID, err) }
+        req.StatusReasonId = &parsedReason
+    }       
     req.Timestamp = time.Now().Format("2006-01-02T15:04:05")
     response, err := s.client.DoPostRequest(ctx, "/api/WorkcenterShift/Workcenter/ChangeStatus", req)
     if err != nil || response == nil || response.StatusCode > 299 {
@@ -126,6 +142,7 @@ func (s *service) StatusIn(ctx context.Context, workcenterID, statusID string) e
 
     // update workcenter status fields
     wc.StatusID = st.StatusId
+    wc.StatusReasonId = req.StatusReasonId
     wc.StatusName = st.Description
     wc.StatusOperatorsAllowed = st.OperatorsAllowed
     wc.StatusClosed = st.Closed

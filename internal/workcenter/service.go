@@ -187,6 +187,7 @@ func(s *service) SetCurrentShift(ctx context.Context)error{
 			if err := s.repo.Set(ctx, wc.WorkcenterID.String(), wc); err != nil {
 				return fmt.Errorf("error updating workcenter %s: %w", wc.WorkcenterID.String(), err)
 			}
+			log.Default().Println("Workcenter shift updated for workcenter ", wc.WorkcenterName)
 			hasChanged = true
 		}
 	}
