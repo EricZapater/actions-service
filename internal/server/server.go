@@ -54,6 +54,7 @@ func Run(app *setup.App) {
 	api.POST("/operator/clockin", app.Handlers.OperatorHandler.ClockIn)
 	api.POST("/operator/clockout", app.Handlers.OperatorHandler.ClockOut)
 	api.POST("/status/in", app.Handlers.StatusHandler.StatusIn)
+	api.POST("/workorderphase/in", app.Handlers.WorkOrderPhaseHandler.WorkOrderPhaseIn)	
 	ws := server.Group("/ws")
 	ws.GET("/general", serverHandlers.WSGeneral)
 	ws.GET("/workcenter/:id", serverHandlers.WSWorkcenter)

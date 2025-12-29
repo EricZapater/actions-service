@@ -15,6 +15,7 @@ import (
 type Service interface {
 	BuildDTO(ctx context.Context)error
     StatusIn(ctx context.Context, workcenterID, statusID string, reasonID *string) error
+    FindByID(ctx context.Context, workcenterID, statusID string) (models.StatusDTO, error)
 }
 
 type service struct {
@@ -101,11 +102,13 @@ func (s *service) StatusIn(ctx context.Context, workcenterID, statusID string, r
         return fmt.Errorf("workcenter %s not found", workcenterID)
     }
 
-    key := fmt.Sprintf("%s:%s", workcenterID, statusID)
-    st, _, err := s.repo.FindByID(ctx, key)
+    //key := fmt.Sprintf("%s:%s", workcenterID, statusID)
+    //st, _, err := s.repo.FindByID(ctx, key)
+    st, err := s.FindByID(ctx, workcenterID, statusID)
     if err != nil {
         return fmt.Errorf("status %s for workcenter %s not found: %w", statusID, workcenterID, err)
     }
+
 
     if !st.OperatorsAllowed {
         //operators out
@@ -164,4 +167,13 @@ func (s *service) StatusIn(ctx context.Context, workcenterID, statusID string, r
     })
 
     return nil
+}
+
+func (s *service) FindByID(ctx context.Context, workcenterID, statusID string) (models.StatusDTO, error){
+	key := fmt.Sprintf("%s:%s", workcenterID, statusID)
+    st, _, err := s.repo.FindByID(ctx, key)
+    if err != nil {
+        return models.StatusDTO{}, fmt.Errorf("status %s for workcenter %s not found: %w", statusID, workcenterID, err)
+    }
+    return st, nil
 }

@@ -27,7 +27,7 @@ type WorkcenterDTO struct {
 	StatusColor                 string         `json:"statusColor"`
 	StatusStartTime             time.Time      `json:"statusStartTime"`
 	Operators                   []OperatorDTO  `json:"operators"`
-	//WorkOrders                  []WorkOrderDTO `json:"Workorders"`
+	WorkOrders                  []WorkOrderDTO `json:"Workorders"`
 }
 
 type Workcenter struct {

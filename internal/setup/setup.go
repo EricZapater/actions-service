@@ -8,6 +8,7 @@ import (
 	"actions-service/internal/state"
 	"actions-service/internal/status"
 	"actions-service/internal/workcenter"
+	"actions-service/internal/workorderphase"
 	"actions-service/internal/ws"
 	"context"
 
@@ -19,11 +20,13 @@ type Services struct {
 	WorkcenterService workcenter.Service
 	OperatorService operator.Service
 	StatusService status.Service
+	WorkOrderPhaseService workorderphase.Service
 }
 
 type Handlers struct {
 	OperatorHandler *operator.Handler
 	StatusHandler *status.Handler
+	WorkOrderPhaseHandler *workorderphase.Handler
 }
 
 type App struct {
@@ -66,16 +69,22 @@ func NewApp(ctx context.Context) (*App, error) {
     statusService := status.NewStatusService(client, *statusRepo, workcenterService, operatorService, hub)
 	statusHandler := status.NewHandler(statusService)
 
+	workorderphaseRepo := workorderphase.NewWorkOrderPhaseRepository(state, redisClient)
+	workorderphaseService := workorderphase.NewWorkOrderPhaseService(client, *workorderphaseRepo, workcenterService, hub, statusService, operatorService)
+	workorderphaseHandler := workorderphase.NewHandler(workorderphaseService)
+
 	services := Services{
 		ShiftService: shiftService,
 		WorkcenterService: workcenterService,
 		OperatorService: operatorService,
 		StatusService: statusService,
+		WorkOrderPhaseService: workorderphaseService,
 	}
 
 	handlers := Handlers{
 		OperatorHandler: operatorHandler,
 		StatusHandler: statusHandler,
+		WorkOrderPhaseHandler: workorderphaseHandler,
 	}
 
 	return &App{
