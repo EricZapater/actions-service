@@ -50,12 +50,14 @@ func (h *Hub) run() {
 		case client := <-h.register:
 			h.mu.Lock()
 			h.clients[client] = true
+			log.Printf("Client connected to channel %s. Total clients: %d", client.channel, len(h.clients))
 			h.mu.Unlock()
 		case client := <-h.unregister:
 			h.mu.Lock()
 			if _, ok := h.clients[client]; ok {
 				delete(h.clients, client)
 				client.conn.Close()
+				log.Printf("Client disconnected from channel %s. Total clients: %d", client.channel, len(h.clients))
 			}
 			h.mu.Unlock()
 		case msg := <-h.broadcast:

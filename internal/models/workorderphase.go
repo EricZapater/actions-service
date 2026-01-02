@@ -8,8 +8,6 @@ type WorkOrderPhaseAndStatusRequest struct {
 }
 
 type WorkOrderDTO struct {
-	WorkcenterID     string `json:"WorkcenterId"`
 	WorkOrderPhaseId string `json:"WorkOrderPhaseId"`
-	MachineStatusId  string `json:"MachineStatusId"`
 	StartTime        string `json:"StartTime"`
 }

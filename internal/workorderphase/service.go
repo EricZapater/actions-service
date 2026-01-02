@@ -49,7 +49,7 @@ func (s *service) WorkOrderPhaseIn(ctx context.Context, req models.WorkOrderPhas
 	//Comprovar si en la request hi ha MachineStatusId
 	request := models.WorkOrderPhaseAndStatusRequest{}
 	st := models.StatusDTO{}
-	if req.MachineStatusId != nil{
+	if req.MachineStatusId == nil{
 		request.WorkcenterID = req.WorkcenterID
 		request.WorkOrderPhaseId = req.WorkOrderPhaseId		
 		request.TimeStamp = &now
@@ -104,7 +104,14 @@ func (s *service) WorkOrderPhaseIn(ctx context.Context, req models.WorkOrderPhas
 	wo := models.WorkOrderDTO{}
 	wo.WorkOrderPhaseId = req.WorkOrderPhaseId
 	wo.StartTime = now
-	wc.WorkOrders = append(wc.WorkOrders, wo)
+	for _, workorder := range wc.WorkOrders {
+		if workorder.WorkOrderPhaseId == req.WorkOrderPhaseId {
+			continue
+		}else{
+			wc.WorkOrders = append(wc.WorkOrders, wo)
+		}
+	}
+	
 
 	if err := s.repo.SetWorkcenterDTO(ctx, wc.WorkcenterID.String(), *wc); err != nil {
         return fmt.Errorf("error updating workcenter %s: %w", wc.WorkcenterID.String(), err)
@@ -116,6 +123,14 @@ func (s *service) WorkOrderPhaseIn(ctx context.Context, req models.WorkOrderPhas
 		}{
 			Type: "Workcenter",
 			Payload: wc,
+		})
+	state := s.repo.state.GetState()
+	s.hub.Broadcast("general", struct {
+			Type string `json:"type"`
+			Payload interface{} `json:"payload"`
+		}{
+			Type: "Workcenter",
+			Payload: state.Workcenters,
 		})
 		
 	return nil	
