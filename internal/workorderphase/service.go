@@ -46,7 +46,7 @@ func (s *service) WorkOrderPhaseIn(ctx context.Context, req models.WorkOrderPhas
         return NewServiceError(http.StatusNotFound, fmt.Sprintf("workcenter %s not found", req.WorkcenterID), nil)
     }
 
-	if !wc.MultiOfAvailable && len(wc.WorkOrders) > 0 {
+	if !wc.MultiWoAvailable && len(wc.WorkOrders) > 0 {
 		return NewServiceError(http.StatusConflict, fmt.Sprintf("workcenter %s already has a workorder", req.WorkcenterID), nil)
 	}
 
