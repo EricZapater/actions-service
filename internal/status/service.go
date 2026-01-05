@@ -166,6 +166,19 @@ func (s *service) StatusIn(ctx context.Context, workcenterID, statusID string, r
         Payload: wc,
     })
 
+	workcenters, err := s.workcenterPort.GetAllWorkcenters(ctx)
+	if err != nil {
+		return fmt.Errorf("error listing workcenters: %w", err)
+	}
+
+	s.hub.Broadcast("general", struct {
+			Type string `json:"type"`
+			Payload interface{} `json:"payload"`
+		}{
+			Type: "Workcenter",
+			Payload: workcenters,
+		})
+
     return nil
 }
 

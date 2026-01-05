@@ -27,11 +27,9 @@ func NewHandler(app *setup.App) *Handler {
 // @Success 200 {object} models.ResponseMessage
 // @Router /healthcheck [get]
 func (h *Handler) HealthCheck(ctx *gin.Context) {
-	s := h.app.State.GetState()
 	ctx.JSON(http.StatusOK, models.ResponseMessage{
 		Result:  "success",
 		Message: "Service is healthy",
-		Content: s,
 	})
 }
 
@@ -47,11 +45,10 @@ func (h *Handler) ReloadDTO(ctx *gin.Context) {
 	h.app.Services.ShiftService.BuildDTO(ctx)
 	h.app.Services.OperatorService.BuilDTO(ctx)
 	h.app.Services.WorkcenterService.BuildDTO(ctx)	
-	s := h.app.State.GetState()
+	
 	ctx.JSON(http.StatusOK, models.ResponseMessage{
 		Result:  "success",
 		Message: "DTOs reloaded successfully",
-		Content: s,
 	})
 }
 
@@ -64,14 +61,19 @@ func (h *Handler) ReloadDTO(ctx *gin.Context) {
 // @Success 101 {string} string "Switching Protocols"
 // @Router /ws/general [get]
 func (h *Handler) WSGeneral(ctx *gin.Context) {
-	state := h.app.State.GetState()
-	//fmt.Println(state)
+	workcenters, err := h.app.Services.WorkcenterService.GetAllWorkcenters(ctx)
+	if err != nil {
+		// Log error but proceed with empty or partial? 
+		// For WS connection it's better to just log and maybe send empty if failed
+		// But HandleWS expects payload.
+		workcenters = []models.WorkcenterDTO{}
+	}
 	h.app.Hub.HandleWS(ctx.Writer, ctx.Request, "general", struct {
 											Type string `json:"type"`
 											Payload interface{} `json:"payload"`
 									}{
 										Type:"General",
-										Payload: state.Workcenters,
+										Payload: workcenters,
 									})
 }
 
@@ -87,12 +89,19 @@ func (h *Handler) WSGeneral(ctx *gin.Context) {
 // @Router /ws/workcenter/{id} [get]
 func(h *Handler) WSWorkcenter(ctx *gin.Context) {
 	workcenterID := ctx.Param("id")
-	state := h.app.State.GetState()	
+	wc, err := h.app.Services.WorkcenterService.GetWorkcenterDTO(ctx, workcenterID)
+	if err != nil || wc == nil {
+		ctx.JSON(http.StatusNotFound, models.ResponseMessage{
+			Result: "error",
+			Message: "Workcenter not found",
+		})
+		return
+	}
 	h.app.Hub.HandleWS(ctx.Writer, ctx.Request, workcenterID, struct {
 			Type string `json:"type"`
 			Payload interface{} `json:"payload"`
 	}{
 		Type: "Workcenter",
-		Payload: state.Workcenters[workcenterID],
+		Payload: wc,
 	})
 }

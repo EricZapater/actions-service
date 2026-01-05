@@ -131,29 +131,32 @@ func (s *service) ClockIn(ctx context.Context, operatorID, workcenterID string)e
 	if err := s.repo.SetWorkcenterDTO(ctx, wc.WorkcenterID.String(), *wc); err != nil {
 		return fmt.Errorf("error updating workcenter %s: %w", wc.WorkcenterID.String(), err)
 	}
-	state := s.repo.state.GetState()
 	
 	s.hub.Broadcast(wc.WorkcenterID.String(), struct {
 			Type string `json:"type"`
 			Payload interface{} `json:"payload"`
 		}{
 			Type: "Workcenter",
-			Payload: state.Workcenters[wc.WorkcenterID.String()],
+			Payload: wc,
 		})
 
-		
+	workcenters, err := s.port.GetAllWorkcenters(ctx)
+	if err != nil {
+		return fmt.Errorf("error listing workcenters: %w", err)
+	}
+
 	s.hub.Broadcast("general", struct {
 			Type string `json:"type"`
 			Payload interface{} `json:"payload"`
 		}{
 			Type: "Workcenter",
-			Payload: state.Workcenters,
+			Payload: workcenters,
 		})
 	return nil
 }
 
-func (s *service) ClockOut(ctx context.Context, operatorID, workcenterID string)error {
-	log.Printf("out")
+func (s *service) ClockOut(ctx context.Context, operatorID, workcenterID string)error {	
+	// ... (Previous logic remains the same until broadcast)
 	wc, err := s.port.GetWorkcenterDTO(ctx, workcenterID)
 	if err != nil {
 		return fmt.Errorf("error checking workcenter existence: %w", err)
@@ -188,29 +191,29 @@ func (s *service) ClockOut(ctx context.Context, operatorID, workcenterID string)
 	}
 	wc.Operators = filtered
 
-	dump, _ := json.MarshalIndent(wc, "", "  ")
-	log.Printf("Workcenter after clockout: %s", string(dump))
-
 	if err := s.repo.SetWorkcenterDTO(ctx, wc.WorkcenterID.String(), *wc); err != nil {
 		return fmt.Errorf("error updating workcenter %s: %w", wc.WorkcenterID.String(), err)
 	}
-	state := s.repo.state.GetState()
 
 	s.hub.Broadcast(wc.WorkcenterID.String(), struct {
 			Type string `json:"type"`
 			Payload interface{} `json:"payload"`
 		}{
 			Type: "Workcenter",
-			Payload: state.Workcenters[wc.WorkcenterID.String()],
+			Payload: wc,
 		})
-
+	
+	workcenters, err := s.port.GetAllWorkcenters(ctx)
+	if err != nil {
+		return fmt.Errorf("error listing workcenters: %w", err)
+	}
 		
 	s.hub.Broadcast("general", struct {
 			Type string `json:"type"`
 			Payload interface{} `json:"payload"`
 		}{
 			Type: "Workcenter",
-			Payload: state.Workcenters,
+			Payload: workcenters,
 		})
 	return nil
 }
