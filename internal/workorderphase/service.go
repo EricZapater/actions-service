@@ -45,6 +45,10 @@ func (s *service) WorkOrderPhaseIn(ctx context.Context, req models.WorkOrderPhas
         return fmt.Errorf("workcenter %s not found", req.WorkcenterID)
     }
 
+	if wc.MultiOfAvailable && len(wc.WorkOrders) > 0 {
+		return fmt.Errorf("workcenter %s already has a workorder", req.WorkcenterID)
+	}
+
 	now := time.Now().Format("2006-01-02T15:04:05")
 	//Comprovar si en la request hi ha MachineStatusId
 	request := models.WorkOrderPhaseAndStatusRequest{}
@@ -63,6 +67,7 @@ func (s *service) WorkOrderPhaseIn(ctx context.Context, req models.WorkOrderPhas
 			}
 			return fmt.Errorf("backend workorderphase in failed (code %d, status %s): %w", code, status, err)
 		}
+		//fmt.Println(response)
 		if response != nil && response.Body != nil { _ = response.Body.Close() }
 	} else {
 		st, err = s.statusPort.FindByID(ctx, req.WorkcenterID, *req.MachineStatusId)
@@ -71,11 +76,13 @@ func (s *service) WorkOrderPhaseIn(ctx context.Context, req models.WorkOrderPhas
 		}
 		if !st.OperatorsAllowed {
         //operators out
-        for _, operator := range wc.Operators {            
-            s.operatorPort.ClockOut(ctx, operator.OperatorID.String(), req.WorkcenterID)
-        }
-        // Clear operators from memory to avoid overwriting the ClockOut changes
-        wc.Operators = []models.OperatorDTO{}
+			for _, operator := range wc.Operators {            
+				s.operatorPort.ClockOut(ctx, operator.OperatorID.String(), req.WorkcenterID)
+			}
+			wc.Operators = []models.OperatorDTO{}
+		}	
+		// Clear operators from memory to avoid overwriting the ClockOut changes
+        
 		request.WorkcenterID = req.WorkcenterID
 		request.WorkOrderPhaseId = req.WorkOrderPhaseId		
 		request.MachineStatusId = req.MachineStatusId	
@@ -90,8 +97,9 @@ func (s *service) WorkOrderPhaseIn(ctx context.Context, req models.WorkOrderPhas
 			}
 			return fmt.Errorf("backend workorderphase and status in failed (code %d, status %s): %w", code, status, err)
 		}
+		fmt.Println(response)
 		if response != nil && response.Body != nil { _ = response.Body.Close() }
-    	}	
+    	
 		wc.StatusID = st.StatusId
     	wc.StatusReasonId = &uuid.Nil
     	wc.StatusName = st.Description
@@ -137,5 +145,58 @@ func (s *service) WorkOrderPhaseIn(ctx context.Context, req models.WorkOrderPhas
 }
 
 func (s *service) WorkOrderPhaseOut(ctx context.Context, req models.WorkOrderPhaseAndStatusRequest)error{
- return nil	
+ 	wc, err := s.workcenterPort.GetWorkcenterDTO(ctx, req.WorkcenterID)
+    if err != nil {
+        return fmt.Errorf("error checking workcenter existence: %w", err)
+    }
+    if wc == nil {
+        return fmt.Errorf("workcenter %s not found", req.WorkcenterID)
+    }
+	request := models.WorkOrderPhaseAndStatusRequest{}
+	now := time.Now().Format("2006-01-02T15:04:05")
+	request.WorkcenterID = req.WorkcenterID
+	request.WorkOrderPhaseId = req.WorkOrderPhaseId		
+	request.TimeStamp = &now
+	response, err := s.client.DoPostRequest(ctx, "/api/WorkcenterShift/WorkOrderPhase/Out", request)
+		if err != nil || response == nil || response.StatusCode > 299 {
+			var status string
+			var code int
+			if response != nil {
+				status = response.Status
+				code = response.StatusCode
+			}
+			return fmt.Errorf("backend workorderphase in failed (code %d, status %s): %w", code, status, err)
+		}
+		fmt.Println(response)
+	if response != nil && response.Body != nil { _ = response.Body.Close() }
+	workorders := wc.WorkOrders
+	filtered := make([]models.WorkOrderDTO, 0, len(workorders))
+	for _, workorder := range workorders {
+		if workorder.WorkOrderPhaseId != req.WorkOrderPhaseId {
+			filtered = append(filtered, workorder)
+		}
+	}
+	wc.WorkOrders = filtered
+	
+	if err := s.repo.SetWorkcenterDTO(ctx, wc.WorkcenterID.String(), *wc); err != nil {
+        return fmt.Errorf("error updating workcenter %s: %w", wc.WorkcenterID.String(), err)
+    }
+	
+	s.hub.Broadcast(wc.WorkcenterID.String(), struct {
+			Type string `json:"type"`
+			Payload interface{} `json:"payload"`
+		}{
+			Type: "Workcenter",
+			Payload: wc,
+		})
+	state := s.repo.state.GetState()
+	s.hub.Broadcast("general", struct {
+			Type string `json:"type"`
+			Payload interface{} `json:"payload"`
+		}{
+			Type: "Workcenter",
+			Payload: state.Workcenters,
+		})
+		
+	return nil	
 }

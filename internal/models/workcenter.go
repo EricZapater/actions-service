@@ -10,6 +10,7 @@ type WorkcenterDTO struct {
 	WorkcenterID                uuid.UUID      `json:"workcenterId"`
 	WorkcenterName              string         `json:"workcenterName"`
 	WorkcenterDescription       string         `json:"workcenterDescription"`
+	MultiOfAvailable			bool			`json:"multiOfAvailable"`
 	AreaID                      uuid.UUID      `json:"areaId"`
 	AreaDescription             string         `json:"areaDescription"`
 	ShiftID                     uuid.UUID      `json:"shiftId"`
@@ -36,6 +37,7 @@ type Workcenter struct {
 	Description string    `json:"description"`
 	AreaId      uuid.UUID `json:"areaId"`
 	ShiftId     uuid.UUID `json:"shiftId"`
+	MultiOfAvailable			bool			`json:"multiOfAvailable"`
 	Disabled    bool      `json:"disabled"`
 }
 

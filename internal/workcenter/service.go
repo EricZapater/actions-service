@@ -74,6 +74,7 @@ func (s *service) BuildDTO(ctx context.Context)error {
 			WorkcenterID: workcenter.Id,
 			WorkcenterName: workcenter.Name,
 			WorkcenterDescription: workcenter.Description,
+			MultiOfAvailable: workcenter.MultiOfAvailable,
 			AreaID: workcenter.AreaId,
 			AreaDescription: "",
 			ShiftID: workcenter.ShiftId,
