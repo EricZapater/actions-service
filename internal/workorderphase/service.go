@@ -6,6 +6,7 @@ import (
 	"actions-service/internal/ws"
 	"context"
 	"fmt"
+	"net/http"
 	"time"
 
 	"github.com/google/uuid"
@@ -42,11 +43,11 @@ func (s *service) WorkOrderPhaseIn(ctx context.Context, req models.WorkOrderPhas
         return fmt.Errorf("error checking workcenter existence: %w", err)
     }
     if wc == nil {
-        return fmt.Errorf("workcenter %s not found", req.WorkcenterID)
+        return NewServiceError(http.StatusNotFound, fmt.Sprintf("workcenter %s not found", req.WorkcenterID), nil)
     }
 
-	if wc.MultiOfAvailable && len(wc.WorkOrders) > 0 {
-		return fmt.Errorf("workcenter %s already has a workorder", req.WorkcenterID)
+	if !wc.MultiOfAvailable && len(wc.WorkOrders) > 0 {
+		return NewServiceError(http.StatusConflict, fmt.Sprintf("workcenter %s already has a workorder", req.WorkcenterID), nil)
 	}
 
 	now := time.Now().Format("2006-01-02T15:04:05")
@@ -112,14 +113,17 @@ func (s *service) WorkOrderPhaseIn(ctx context.Context, req models.WorkOrderPhas
 	wo := models.WorkOrderDTO{}
 	wo.WorkOrderPhaseId = req.WorkOrderPhaseId
 	wo.StartTime = now
+	exists := false
 	for _, workorder := range wc.WorkOrders {
 		if workorder.WorkOrderPhaseId == req.WorkOrderPhaseId {
-			continue
-		}else{
-			wc.WorkOrders = append(wc.WorkOrders, wo)
+			exists = true
+			break
 		}
 	}
-	
+
+	if !exists {
+		wc.WorkOrders = append(wc.WorkOrders, wo)
+	}
 
 	if err := s.repo.SetWorkcenterDTO(ctx, wc.WorkcenterID.String(), *wc); err != nil {
         return fmt.Errorf("error updating workcenter %s: %w", wc.WorkcenterID.String(), err)
@@ -132,13 +136,16 @@ func (s *service) WorkOrderPhaseIn(ctx context.Context, req models.WorkOrderPhas
 			Type: "Workcenter",
 			Payload: wc,
 		})
-	state := s.repo.state.GetState()
+	workcenters, err := s.repo.List(ctx)
+	if err != nil {
+		return fmt.Errorf("error listing workcenters: %w", err)
+	}
 	s.hub.Broadcast("general", struct {
 			Type string `json:"type"`
 			Payload interface{} `json:"payload"`
 		}{
 			Type: "Workcenter",
-			Payload: state.Workcenters,
+			Payload: workcenters,
 		})
 		
 	return nil	
@@ -189,13 +196,16 @@ func (s *service) WorkOrderPhaseOut(ctx context.Context, req models.WorkOrderPha
 			Type: "Workcenter",
 			Payload: wc,
 		})
-	state := s.repo.state.GetState()
+	workcenters, err := s.repo.List(ctx)
+	if err != nil {
+		return fmt.Errorf("error listing workcenters: %w", err)
+	}
 	s.hub.Broadcast("general", struct {
 			Type string `json:"type"`
 			Payload interface{} `json:"payload"`
 		}{
 			Type: "Workcenter",
-			Payload: state.Workcenters,
+			Payload: workcenters,
 		})
 		
 	return nil	

@@ -2,31 +2,32 @@ package shift
 
 import (
 	"actions-service/internal/models"
-	"actions-service/internal/state"
 	"context"
+	"sync"
 	"time"
 )
 
 type Repository struct {	
-	state *state.State
+	mu sync.RWMutex
+	shifts map[string]models.ShiftDTO
 }
 
-func NewShiftRepository(state *state.State) *Repository {
+func NewShiftRepository() *Repository {
 	return &Repository{
-		state: state,
+		shifts: make(map[string]models.ShiftDTO),
 	}
 }
 
 func (r *Repository) Set(ctx context.Context, id string, value models.ShiftDTO) {	
-	r.state.Mu.Lock()	
-	defer r.state.Mu.Unlock()
-	r.state.Shifts[id] = value
+	r.mu.Lock()	
+	defer r.mu.Unlock()
+	r.shifts[id] = value
 }
 
 func (r *Repository) FindCurrent(ctx context.Context, now time.Time, id string) (models.ShiftDetailDTO, error) {
-	r.state.Mu.RLock()
-	defer r.state.Mu.RUnlock()
-	shift, exists := r.state.Shifts[id]
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	shift, exists := r.shifts[id]
 	if !exists {
 		return models.ShiftDetailDTO{}, ErrShiftNotFound
 	}
