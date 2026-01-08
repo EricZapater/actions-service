@@ -8,6 +8,21 @@ type WorkOrderPhaseAndStatusRequest struct {
 }
 
 type WorkOrderDTO struct {
-	WorkOrderPhaseId string `json:"WorkOrderPhaseId"`
-	StartTime        string `json:"StartTime"`
+	WorkOrderPhaseId          string `json:"workOrderPhaseId"`
+	WorkOrderCode             string `json:"workOrderCode"`
+	WorkOrderPhaseCode        string `json:"workOrderPhaseCode"`
+	WorkOrderPhaseDescription string `json:"workOrderPhaseDescription"`
+	PlannedQuantity           int    `json:"plannedQuantity"`
+	ReferenceCode             string `json:"referenceCode"`
+	ReferenceDescription      string `json:"referenceDescription"`
+	StartTime                 string `json:"startTime"`
+}
+
+type WorkOrderPhaseResponse struct {
+	WorkOrderCode             string `json:"workOrderCode"`
+	WorkOrderPhaseCode        string `json:"workOrderPhaseCode"`
+	WorkOrderPhaseDescription string `json:"workOrderPhaseDescription"`
+	PlannedQuantity           int    `json:"plannedQuantity"`
+	ReferenceCode             string `json:"referenceCode"`
+	ReferenceDescription      string `json:"referenceDescription"`
 }

@@ -5,6 +5,7 @@ import (
 	"actions-service/internal/models"
 	"actions-service/internal/ws"
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"time"
@@ -50,7 +51,36 @@ func (s *service) WorkOrderPhaseIn(ctx context.Context, req models.WorkOrderPhas
 		return NewServiceError(http.StatusConflict, fmt.Sprintf("workcenter %s already has a workorder", req.WorkcenterID), nil)
 	}
 
+	//Get Phase information
+	response, err := s.client.DoGetRequest(ctx, "/api/WorkOrder/Detailed/ByWorkOrderPhase/" + req.WorkOrderPhaseId)
+	if err != nil || response == nil || response.StatusCode > 299 {
+		var status string
+		var code int
+		if response != nil {
+			status = response.Status
+			code = response.StatusCode
+		}
+		return fmt.Errorf("backend workorderphase in failed (code %d, status %s): %w", code, status, err)
+	}
+	var phase []models.WorkOrderPhaseResponse
+	err = json.NewDecoder(response.Body).Decode(&phase)
+	if err != nil {
+		return err
+	}	
 	now := time.Now().Format("2006-01-02T15:04:05")
+	wo := models.WorkOrderDTO{}
+	wo.WorkOrderPhaseId = req.WorkOrderPhaseId
+	wo.StartTime = now
+	wo.PlannedQuantity = phase[0].PlannedQuantity
+	wo.WorkOrderCode = phase[0].WorkOrderCode
+	wo.WorkOrderPhaseCode = phase[0].WorkOrderPhaseCode
+	wo.WorkOrderPhaseDescription = phase[0].WorkOrderPhaseDescription
+	wo.ReferenceCode = phase[0].ReferenceCode
+	wo.ReferenceDescription = phase[0].ReferenceDescription
+	
+	if response != nil && response.Body != nil { _ = response.Body.Close() }
+	
+	
 	//Comprovar si en la request hi ha MachineStatusId
 	request := models.WorkOrderPhaseAndStatusRequest{}
 	st := models.StatusDTO{}
@@ -82,7 +112,6 @@ func (s *service) WorkOrderPhaseIn(ctx context.Context, req models.WorkOrderPhas
 			}
 			wc.Operators = []models.OperatorDTO{}
 		}	
-		// Clear operators from memory to avoid overwriting the ClockOut changes
         
 		request.WorkcenterID = req.WorkcenterID
 		request.WorkOrderPhaseId = req.WorkOrderPhaseId		
@@ -110,9 +139,7 @@ func (s *service) WorkOrderPhaseIn(ctx context.Context, req models.WorkOrderPhas
     	wc.StatusColor = st.Color
     	wc.StatusStartTime = time.Now()
 	}
-	wo := models.WorkOrderDTO{}
-	wo.WorkOrderPhaseId = req.WorkOrderPhaseId
-	wo.StartTime = now
+	
 	exists := false
 	for _, workorder := range wc.WorkOrders {
 		if workorder.WorkOrderPhaseId == req.WorkOrderPhaseId {
