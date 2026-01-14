@@ -3,6 +3,7 @@ package workorderphase
 import (
 	"actions-service/internal/models"
 	"errors"
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -52,7 +53,7 @@ func (h *Handler) WorkOrderPhaseIn(c *gin.Context) {
 }
 
 func(h *Handler)WorkOrderPhaseOut(c *gin.Context){
-	var req models.WorkOrderPhaseAndStatusRequest
+	var req models.WorkOrderPhaseOutRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, models.ResponseMessage{
 			Result:  "error",
@@ -61,6 +62,7 @@ func(h *Handler)WorkOrderPhaseOut(c *gin.Context){
 		})
 		return
 	}
+	fmt.Println(req)
 	if err := h.service.WorkOrderPhaseOut(c.Request.Context(), req); err != nil {
 		var svcErr *ServiceError
 		if errors.As(err, &svcErr) {
