@@ -101,7 +101,7 @@ func (s *service) WorkOrderPhaseIn(ctx context.Context, req models.WorkOrderPhas
 		//fmt.Println(response)
 		if response != nil && response.Body != nil { _ = response.Body.Close() }
 	} else {
-		st, err = s.statusPort.FindByID(ctx, req.WorkcenterID, *req.MachineStatusId)
+		st, err = s.statusPort.FindByID(ctx, *req.MachineStatusId)
 		if err != nil {
 			return fmt.Errorf("error checking status existence: %w", err)
 		}

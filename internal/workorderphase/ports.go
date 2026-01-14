@@ -10,7 +10,7 @@ type WorkcenterPort interface {
 }
 
 type StatusPort interface {
-	FindByID(ctx context.Context, workcenterID, statusID string) (models.StatusDTO, error)
+	FindByID(ctx context.Context, statusID string) (models.StatusDTO, error)
 }
 
 type OperatorPort interface {

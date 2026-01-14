@@ -30,8 +30,7 @@ type StatusCostResponse struct {
 	Cost float32 `json:"cost"`
 }
 
-type StatusDTO struct {
-	WorkcenterId uuid.UUID `json:"workcenterId"`
+type StatusDTO struct {	
 	StatusId uuid.UUID `json:"statusId"`
 	StatusReasonId *uuid.UUID `json:"statusReasonId"`
 	Description string `json:"description"`
