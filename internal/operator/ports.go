@@ -7,4 +7,5 @@ import (
 
 type WorkcenterPort interface {
 	GetWorkcenterDTO(ctx context.Context, id string) (*models.WorkcenterDTO, error)
+	GetAllWorkcenters(ctx context.Context) ([]models.WorkcenterDTO, error)
 }

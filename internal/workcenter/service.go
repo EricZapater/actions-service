@@ -3,6 +3,7 @@ package workcenter
 import (
 	"actions-service/internal/clients"
 	"actions-service/internal/models"
+	"actions-service/internal/observability"
 	"actions-service/internal/shift"
 	"actions-service/internal/ws"
 	"context"
@@ -18,8 +19,10 @@ type Service interface {
 	BuildDTO(ctx context.Context) error
 	SetCurrentShift(ctx context.Context) error
 	GetWorkcenterDTO(ctx context.Context, id string) (*models.WorkcenterDTO, error)
+	GetAllWorkcenters(ctx context.Context) ([]models.WorkcenterDTO, error)
 }
 
+// ... existing struct and constructor ...
 type service struct {
 	client clients.HttpBackendClient
 	repo  Repository
@@ -74,6 +77,7 @@ func (s *service) BuildDTO(ctx context.Context)error {
 			WorkcenterID: workcenter.Id,
 			WorkcenterName: workcenter.Name,
 			WorkcenterDescription: workcenter.Description,
+			MultiWoAvailable: workcenter.MultiWoAvailable,
 			AreaID: workcenter.AreaId,
 			AreaDescription: "",
 			ShiftID: workcenter.ShiftId,
@@ -192,7 +196,7 @@ func(s *service) SetCurrentShift(ctx context.Context)error{
 		}
 	}
 	if hasChanged {
-		state := s.repo.state.GetState()
+		workcenters, err := s.repo.List(ctx)
 		if err != nil {
 			return fmt.Errorf("error listing workcenters: %w", err)
 		}
@@ -201,7 +205,7 @@ func(s *service) SetCurrentShift(ctx context.Context)error{
 			Payload interface{} `json:"payload"`
 		}{
 			Type: "Workcenter",
-			Payload: state.Workcenters,
+			Payload: workcenters,
 		})
 	}
 	return nil
@@ -216,8 +220,12 @@ func(s *service) createWorkcenterShift(ctx context.Context, request models.Creat
 		log.Printf("Something went wrong calling the backend %v", err)
 		return err
 	}
-	end := time.Now()
-	log.Printf("CreateWorkcenterShift took %v", end.Sub(start))
+	duration := time.Since(start)
+	
+	// Record metrics
+	observability.RecordShiftChange(ctx, request.WorkcenterID.String(), request.ShiftDetailId.String(), duration)
+	
+	log.Printf("CreateWorkcenterShift took %v", duration)
 	//log.Printf("Response status: %v\n", response.Status)
 	return nil
 }
@@ -258,4 +266,8 @@ func (s *service) GetWorkcenterDTO(ctx context.Context, id string) (*models.Work
 		return &wc, nil
 	}
 	return nil, nil
+}
+
+func (s *service) GetAllWorkcenters(ctx context.Context) ([]models.WorkcenterDTO, error) {
+	return s.repo.List(ctx)
 }

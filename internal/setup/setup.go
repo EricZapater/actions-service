@@ -5,9 +5,9 @@ import (
 	"actions-service/internal/config"
 	"actions-service/internal/operator"
 	"actions-service/internal/shift"
-	"actions-service/internal/state"
 	"actions-service/internal/status"
 	"actions-service/internal/workcenter"
+	"actions-service/internal/workorderphase"
 	"actions-service/internal/ws"
 	"context"
 
@@ -19,18 +19,19 @@ type Services struct {
 	WorkcenterService workcenter.Service
 	OperatorService operator.Service
 	StatusService status.Service
+	WorkOrderPhaseService workorderphase.Service
 }
 
 type Handlers struct {
 	OperatorHandler *operator.Handler
 	StatusHandler *status.Handler
+	WorkOrderPhaseHandler *workorderphase.Handler
 }
 
 type App struct {
 	Cfg *config.Config	
 	Services Services
 	Handlers Handlers
-	State *state.State
 	Hub *ws.Hub
 }
 
@@ -47,42 +48,45 @@ func NewApp(ctx context.Context) (*App, error) {
 		Password: "", 
 		DB:       0,  
 	})
-	state := state.New()
 
 	hub := ws.NewHub()	
 	
-
-	shiftRepo := shift.NewShiftRepository(state)
+	shiftRepo := shift.NewShiftRepository()
 	shiftService := shift.NewShiftService(client, *shiftRepo)
 
-	workcenterRepo := workcenter.NewWorkcenterRepository(state, redisClient)
+	workcenterRepo := workcenter.NewWorkcenterRepository(redisClient)
 	workcenterService := workcenter.NewWorkcenterService(client, *workcenterRepo, shiftService, hub)
 
-	operatorRepo := operator.NewOperatorRepository(state, redisClient)
+	operatorRepo := operator.NewOperatorRepository(redisClient)
 	operatorService := operator.NewOperatorService(client, *operatorRepo, workcenterService, hub)
 	operatorHandler := operator.NewHandler(operatorService)
 
-    statusRepo := status.NewStatusRepository(state, redisClient)
+    statusRepo := status.NewStatusRepository(redisClient)
     statusService := status.NewStatusService(client, *statusRepo, workcenterService, operatorService, hub)
 	statusHandler := status.NewHandler(statusService)
+
+	workorderphaseRepo := workorderphase.NewWorkOrderPhaseRepository(redisClient)
+	workorderphaseService := workorderphase.NewWorkOrderPhaseService(client, *workorderphaseRepo, workcenterService, hub, statusService, operatorService)
+	workorderphaseHandler := workorderphase.NewHandler(workorderphaseService)
 
 	services := Services{
 		ShiftService: shiftService,
 		WorkcenterService: workcenterService,
 		OperatorService: operatorService,
 		StatusService: statusService,
+		WorkOrderPhaseService: workorderphaseService,
 	}
 
 	handlers := Handlers{
 		OperatorHandler: operatorHandler,
 		StatusHandler: statusHandler,
+		WorkOrderPhaseHandler: workorderphaseHandler,
 	}
 
 	return &App{
 		Cfg: cfg,		
 		Services: services,
 		Handlers: handlers,
-		State: state,
 		Hub: hub,
 	}, nil
 }

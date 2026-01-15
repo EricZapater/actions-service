@@ -1,4 +1,4 @@
-package status
+package workorderphase
 
 import (
 	"actions-service/internal/models"
@@ -7,7 +7,10 @@ import (
 
 type WorkcenterPort interface {
 	GetWorkcenterDTO(ctx context.Context, id string) (*models.WorkcenterDTO, error)
-	GetAllWorkcenters(ctx context.Context) ([]models.WorkcenterDTO, error)
+}
+
+type StatusPort interface {
+	FindByID(ctx context.Context, statusID string) (models.StatusDTO, error)
 }
 
 type OperatorPort interface {
