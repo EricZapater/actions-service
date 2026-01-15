@@ -2,6 +2,7 @@ package status
 
 import (
 	"actions-service/internal/models"
+	"actions-service/internal/observability"
 	"errors"
 	"net/http"
 
@@ -50,6 +51,10 @@ func (h *Handler) StatusIn(c *gin.Context) {
 		})
 		return
 	}
+	
+	// Record metric
+	observability.RecordStatusChange(c.Request.Context(), req.WorkcenterID.String(), req.StatusID.String())
+	
 	c.JSON(http.StatusOK, models.ResponseMessage{
 		Result:  "success",
 		Message: "Status in registered successfully",

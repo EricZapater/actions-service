@@ -2,6 +2,7 @@ package workorderphase
 
 import (
 	"actions-service/internal/models"
+	"actions-service/internal/observability"
 	"errors"
 	"fmt"
 	"net/http"
@@ -46,6 +47,10 @@ func (h *Handler) WorkOrderPhaseIn(c *gin.Context) {
 		})
 		return
 	}
+	
+	// Record metric
+	observability.RecordWorkOrderPhaseIn(c.Request.Context(), req.WorkcenterID)
+	
 	c.JSON(http.StatusOK, models.ResponseMessage{
 		Result:  "success",
 		Message: "Workorderphase and status registered successfully",
@@ -80,6 +85,10 @@ func(h *Handler)WorkOrderPhaseOut(c *gin.Context){
 		})
 		return
 	}
+	
+	// Record metric
+	observability.RecordWorkOrderPhaseOut(c.Request.Context(), req.WorkcenterID)
+	
 	c.JSON(http.StatusOK, models.ResponseMessage{
 		Result:  "success",
 		Message: "Workorderphase and status registered successfully",

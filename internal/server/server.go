@@ -1,6 +1,7 @@
 package server
 
 import (
+	"actions-service/internal/observability"
 	"actions-service/internal/setup"
 	"fmt"
 	"log"
@@ -35,6 +36,13 @@ import (
 func Run(app *setup.App) {	
 	fmt.Println("Starting server...")
 	server := gin.Default()
+	
+	// Observability middlewares (FIRST!)
+	logger := observability.NewLogger(app.Cfg.LogLevel)
+	server.Use(observability.LoggingMiddleware(logger))
+	server.Use(observability.MetricsMiddleware())
+	
+	// CORS middleware
 	server.Use(cors.New(cors.Config{
 		AllowOrigins:     []string{"*"},
 		AllowMethods:     []string{"PUT", "PATCH", "GET", "POST", "OPTIONS"},

@@ -3,6 +3,7 @@ package workcenter
 import (
 	"actions-service/internal/clients"
 	"actions-service/internal/models"
+	"actions-service/internal/observability"
 	"actions-service/internal/shift"
 	"actions-service/internal/ws"
 	"context"
@@ -219,8 +220,12 @@ func(s *service) createWorkcenterShift(ctx context.Context, request models.Creat
 		log.Printf("Something went wrong calling the backend %v", err)
 		return err
 	}
-	end := time.Now()
-	log.Printf("CreateWorkcenterShift took %v", end.Sub(start))
+	duration := time.Since(start)
+	
+	// Record metrics
+	observability.RecordShiftChange(ctx, request.WorkcenterID.String(), request.ShiftDetailId.String(), duration)
+	
+	log.Printf("CreateWorkcenterShift took %v", duration)
 	//log.Printf("Response status: %v\n", response.Status)
 	return nil
 }
