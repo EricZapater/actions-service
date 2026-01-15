@@ -7,14 +7,17 @@ import (
 	"time"
 
 	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploggrpc"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc"
+	sdklog "go.opentelemetry.io/otel/sdk/log"
 	"go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/resource"
 	semconv "go.opentelemetry.io/otel/semconv/v1.24.0"
 )
 
 var (
-	meterProvider *metric.MeterProvider
+	meterProvider  *metric.MeterProvider
+	loggerProvider *sdklog.LoggerProvider
 )
 
 // Config holds the observability configuration
@@ -25,7 +28,7 @@ type Config struct {
 	Environment    string
 }
 
-// InitTelemetry initializes OpenTelemetry with metrics support
+// InitTelemetry initializes OpenTelemetry with metrics and logs support
 func InitTelemetry(ctx context.Context, cfg Config) (shutdown func(context.Context) error, err error) {
 	// Create resource with service information
 	res, err := resource.New(ctx,
@@ -59,7 +62,22 @@ func InitTelemetry(ctx context.Context, cfg Config) (shutdown func(context.Conte
 	// Set global meter provider
 	otel.SetMeterProvider(meterProvider)
 
-	log.Printf("OpenTelemetry initialized: service=%s, endpoint=%s", cfg.ServiceName, cfg.OtelEndpoint)
+	// Create OTLP log exporter
+	logExporter, err := otlploggrpc.New(ctx,
+		otlploggrpc.WithEndpoint(cfg.OtelEndpoint),
+		otlploggrpc.WithInsecure(),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create log exporter: %w", err)
+	}
+
+	// Create logger provider
+	loggerProvider = sdklog.NewLoggerProvider(
+		sdklog.WithResource(res),
+		sdklog.WithProcessor(sdklog.NewBatchProcessor(logExporter)),
+	)
+
+	log.Printf("OpenTelemetry initialized: service=%s, endpoint=%s (metrics + logs)", cfg.ServiceName, cfg.OtelEndpoint)
 
 	// Return shutdown function
 	return func(ctx context.Context) error {
@@ -67,8 +85,16 @@ func InitTelemetry(ctx context.Context, cfg Config) (shutdown func(context.Conte
 		if err := meterProvider.Shutdown(ctx); err != nil {
 			return fmt.Errorf("failed to shutdown meter provider: %w", err)
 		}
+		if err := loggerProvider.Shutdown(ctx); err != nil {
+			return fmt.Errorf("failed to shutdown logger provider: %w", err)
+		}
 		return nil
 	}, nil
+}
+
+// GetLoggerProvider returns the global logger provider
+func GetLoggerProvider() *sdklog.LoggerProvider {
+	return loggerProvider
 }
 
 // GetMeter returns the global meter for creating metrics
