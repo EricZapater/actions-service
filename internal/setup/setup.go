@@ -52,21 +52,19 @@ func NewApp(ctx context.Context) (*App, error) {
 	hub := ws.NewHub()	
 	
 	shiftRepo := shift.NewShiftRepository()
-	shiftService := shift.NewShiftService(client, *shiftRepo)
-
 	workcenterRepo := workcenter.NewWorkcenterRepository(redisClient)
-	workcenterService := workcenter.NewWorkcenterService(client, *workcenterRepo, shiftService, hub)
-
 	operatorRepo := operator.NewOperatorRepository(redisClient)
-	operatorService := operator.NewOperatorService(client, *operatorRepo, workcenterService, hub)
-	operatorHandler := operator.NewHandler(operatorService)
-
-    statusRepo := status.NewStatusRepository(redisClient)
-    statusService := status.NewStatusService(client, *statusRepo, workcenterService, operatorService, hub)
-	statusHandler := status.NewHandler(statusService)
-
+	statusRepo := status.NewStatusRepository(redisClient)
 	workorderphaseRepo := workorderphase.NewWorkOrderPhaseRepository(redisClient)
+
+	shiftService := shift.NewShiftService(client, *shiftRepo)
+	workcenterService := workcenter.NewWorkcenterService(client, *workcenterRepo, shiftService,statusRepo, hub)	
+	operatorService := operator.NewOperatorService(client, *operatorRepo, workcenterService, hub)
+	statusService := status.NewStatusService(client, *statusRepo, workcenterService, operatorService, hub)
 	workorderphaseService := workorderphase.NewWorkOrderPhaseService(client, *workorderphaseRepo, workcenterService, hub, statusService, operatorService)
+
+	operatorHandler := operator.NewHandler(operatorService)    
+	statusHandler := status.NewHandler(statusService)		
 	workorderphaseHandler := workorderphase.NewHandler(workorderphaseService)
 
 	services := Services{

@@ -34,6 +34,7 @@ type WorkOrderPhaseOutRequest struct {
 	WorkOrderPhaseId     string  `json:"workOrderPhaseId"`
 	NextWorkOrderPhaseId *string `json:"nextWorkOrderPhaseId"`
 	WorkOrderStatusId    *string `json:"workOrderStatusId"`
+	NextMachineStatusId  *string `json:"nextMachineStatusId"`
 	QuantityOk           *int    `json:"quantityOk"`
 	QuantityKo           *int    `json:"quantityKo"`
 	TimeStamp            *string `json:"timestamp"`
@@ -46,6 +47,7 @@ type BackendWorkOrderPhaseOutRequest struct {
 	TimeStamp            string  `json:"timestamp"`
 	WorkOrderStatusId    *string `json:"workOrderStatusId,omitempty"`
 	NextWorkOrderPhaseId *string `json:"nextWorkOrderPhaseId,omitempty"`
+	NextMachineStatusId  *string `json:"nextMachineStatusId,omitempty"`
 }
 
 type WorkOrderPhaseQuantitiesRequest struct {

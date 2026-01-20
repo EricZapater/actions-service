@@ -22,6 +22,14 @@ func (r *Repository) Set(ctx context.Context, id string, value models.StatusDTO)
 	return r.redisRepo.Set(ctx, id, value)
 }
 
+func (r *Repository) SetDefault(ctx context.Context,id string, value models.StatusDTO) error {
+	return r.redisRepo.SetDefault(ctx, id, value)
+}
+
+func (r *Repository) GetDefaultStatus(ctx context.Context) (models.StatusDTO, error) {
+	return r.redisRepo.GetDefaultStatus(ctx)
+}
+
 func (r *Repository) SetWorkcenterDTO(ctx context.Context, id string, value models.WorkcenterDTO) error {
     return r.redisRepo.SetWorkcenterDTO(ctx, id, value)
 }
@@ -33,5 +41,14 @@ func (r *Repository) FindByID(ctx context.Context, id string) (models.StatusDTO,
 	}
 	return models.StatusDTO{}, models.SourceNone, err
 }
+
+func (r *Repository) Delete(ctx context.Context, id string) error {
+	return r.redisRepo.Delete(ctx, id)
+}
+
+func (r *Repository) DeleteAll(ctx context.Context) error {
+	return r.redisRepo.DeleteAll(ctx)
+}
+
 
 

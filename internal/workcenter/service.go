@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"log/slog"
 	"time"
 
 	"github.com/google/uuid"
@@ -27,131 +28,163 @@ type service struct {
 	client clients.HttpBackendClient
 	repo  Repository
 	shiftService shift.Service
+	statusPort StatusPort
 	hub *ws.Hub
+	logger *slog.Logger
 	
 }
 
-func NewWorkcenterService(client clients.HttpBackendClient, repo Repository, shiftService shift.Service, hub *ws.Hub) Service {
+func NewWorkcenterService(client clients.HttpBackendClient, repo Repository, shiftService shift.Service,statusPort StatusPort, hub *ws.Hub) Service {
 	return &service{
 		client: client,
 		repo:  repo,
 		shiftService: shiftService,
+		statusPort: statusPort,
 		hub: hub,
+		logger: observability.NewLogger("info"),
 	}
 }
 
 func (s *service) BuildDTO(ctx context.Context)error {
-	url := "/api/Workcenter"
+	// Get Backend workcenters
+	url := "/api/workcenter"
 	response, err := s.client.DoGetRequest(ctx, url)
 	if err != nil {
-		log.Printf("Something went wrong calling the backend %v", err)
+		s.logger.ErrorContext(ctx,  "Failed to get workcenters from backend",
+    	slog.String("error", err.Error()),
+    	slog.String("url", url),)
 		return err
 	}
-	defer func() { 
-		if response.Body != nil {
-			_ = response.Body.Close() 
-		}
-	}()
-	var workcenters []models.Workcenter
-	if response.StatusCode == 200 {
-		if err := json.NewDecoder(response.Body).Decode(&workcenters); err != nil {
-			return fmt.Errorf("error deserializing response: %w", err)
-		}
-	}else{
-		return fmt.Errorf("response error: %v", response.Status)
+	defer response.Body.Close()
+	if response.StatusCode > 299 {
+		s.logger.ErrorContext(ctx,  "Failed to get workcenters from backend",
+    	slog.String("error", response.Status),
+    	slog.String("url", url),)
+		return fmt.Errorf("error getting workcenters from backend: %s", response.Status)
 	}
-	
-	//recuperar l'area?
-	
-	for _, workcenter := range workcenters {
-		if workcenter.ShiftId == uuid.Nil {
-			//esborrar-lo del redis i de la memoria
-			err := s.repo.Delete(ctx, workcenter.Id.String())
-			if err != nil {
-				log.Printf("error deleting workcenter %s: %v", workcenter.Id.String(), err)
-			}
-			continue
-		}
-		//montar el DTO
-		WorkcentersDTO := &models.WorkcenterDTO{
-			WorkcenterID: workcenter.Id,
-			WorkcenterName: workcenter.Name,
-			WorkcenterDescription: workcenter.Description,
-			MultiWoAvailable: workcenter.MultiWoAvailable,
-			AreaID: workcenter.AreaId,
-			AreaDescription: "",
-			ShiftID: workcenter.ShiftId,
-			ShiftName: "",
-			ShiftDetailId: uuid.Nil,			
-			StatusID: uuid.Nil,
-			StatusName: "",
-			StatusOperatorsAllowed: true,
-			StatusClosed: true,
-			StatusStopped: true,
-			StatusColor: "",
-			StatusStartTime: time.Now(),
-		}
-		wc, source, err := s.repo.FindByID(ctx, WorkcentersDTO.WorkcenterID.String())
-		if err != nil {
-			if err == ErrWorkcenterNotFound {
-				//setejar-lo
-				if err := s.repo.Set(ctx, WorkcentersDTO.WorkcenterID.String(), *WorkcentersDTO); err != nil {
-					return fmt.Errorf("error setting workcenter %s: %w", WorkcentersDTO.WorkcenterID.String(), err)
-				}
-			}
-		}
-		//si no hi ha error, per tant existeix
-		if source == models.SourceMemory {
-			//comprovar areaid, shiftid
-			if wc.AreaID != WorkcentersDTO.AreaID || wc.ShiftID != WorkcentersDTO.ShiftID {	
-				// Nou shift
-				now := time.Now()
-				shiftDetail, err := s.shiftService.FindCurrentShift(ctx, now, wc.ShiftID)
-				if err != nil {
-					log.Printf("error finding current shift for workcenter %s: %v", wc.WorkcenterID.String(), err)
-					continue
-				}
-				
-				request := models.CreateWorkcenterShiftDTO{
-					WorkcenterID:  WorkcentersDTO.WorkcenterID,
-					ShiftDetailId: shiftDetail.ID,
-					StartTime:     now.Format("2006-01-02T15:04:05"),
-				}
-				if err := s.createWorkcenterShift(ctx, request); err != nil {
-					return fmt.Errorf("error creating workcenter shift for workcenter %s: %w", WorkcentersDTO.WorkcenterID.String(), err)
-				}
 
-				WorkcentersDTO.ShiftDetailId = shiftDetail.ID
-				WorkcentersDTO.ShiftDetailStartTime = models.CustomTime{Time: now}
-				WorkcentersDTO.ShiftDetailIsProductiveTime = shiftDetail.IsProductiveTime
-				
-				//Estat
-				WorkcentersDTO.StatusID = wc.StatusID
-				WorkcentersDTO.StatusName = wc.StatusName
-				WorkcentersDTO.StatusOperatorsAllowed = wc.StatusOperatorsAllowed
-				WorkcentersDTO.StatusClosed = wc.StatusClosed
-				WorkcentersDTO.StatusStopped = wc.StatusStopped
-				WorkcentersDTO.StatusColor = wc.StatusColor
-				WorkcentersDTO.StatusStartTime = wc.StatusStartTime
-				if err := s.repo.Set(ctx, WorkcentersDTO.WorkcenterID.String(), *WorkcentersDTO); err != nil {
-					return fmt.Errorf("error updating workcenter %s: %w", WorkcentersDTO.WorkcenterID.String(), err)
-				}
-			}
-		}
-		if source == models.SourceRedis {
-			if err := s.repo.Set(ctx, WorkcentersDTO.WorkcenterID.String(), wc); err != nil {
-				return fmt.Errorf("error updating workcenter %s: %w", WorkcentersDTO.WorkcenterID.String(), err)
-			}
-		}
-
-	//tanca el bucle	
+	var backendWorkcenters []models.Workcenter
+	if err := json.NewDecoder(response.Body).Decode(&backendWorkcenters); err != nil {
+		s.logger.ErrorContext(ctx,  "Failed to decode response from backend",
+      	slog.String("error", err.Error()),
+      	slog.String("url", url),)
+		return fmt.Errorf("error decoding response: %w", err)
 	}
-	wc, err := s.repo.List(ctx) 
+
+	//Get Cache Workcenters
+	cacheWorkcenters, err := s.repo.List(ctx)
 	if err != nil {
+		s.logger.ErrorContext(ctx,  "Failed to get workcenters from cache",
+     	slog.String("error", err.Error()),)
 		return fmt.Errorf("error listing workcenters: %w", err)
 	}
-	log.Printf("Loaded %d workcenters from backend", len(wc))
-	fmt.Println(wc)
+
+	//Map workcenters
+	backendMap := make(map[string]models.Workcenter)	
+	for _, wc := range backendWorkcenters {
+		if wc.ShiftId == uuid.Nil {
+			continue
+		}
+		backendMap[wc.Id.String()] = wc
+	}
+	cacheMap := make(map[string]models.WorkcenterDTO)
+	for _, wc := range cacheWorkcenters {
+		cacheMap[wc.WorkcenterID.String()] = wc
+	}
+
+	//Delete from cache                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             
+	for cacheID := range cacheMap {
+		if _, exists := backendMap[cacheID]; !exists {			
+			if err := s.repo.Delete(ctx, cacheID); err != nil {
+				s.logger.ErrorContext(ctx, "Failed to delete workcenter from cache",
+					slog.String("workcenter_id", cacheID),
+					slog.String("error", err.Error()),)
+			}
+			s.logger.InfoContext(ctx, "Workcenter deleted from cache",
+				slog.String("workcenter_id", cacheID),)				
+		}
+	}
+
+	//get default status
+	defaultStatus, err := s.statusPort.GetDefaultStatus(ctx)
+	if err != nil {
+		s.logger.ErrorContext(ctx, "Failed to get default status",
+			slog.String("error", err.Error()),)
+		return fmt.Errorf("error getting default status: %w", err)
+	}
+	//Add to cache
+	for backendID, backendWC := range backendMap {
+		cacheWC, exists := cacheMap[backendID]
+		//Add to cache
+		if !exists {
+			newWC := models.WorkcenterDTO{
+				WorkcenterID: backendWC.Id,
+				WorkcenterName: backendWC.Name,
+				ShiftID: backendWC.ShiftId,
+				ShiftDetailId: uuid.Nil,
+				StatusID:              defaultStatus.StatusId,
+                StatusName:            defaultStatus.Description,
+                StatusOperatorsAllowed: defaultStatus.OperatorsAllowed,
+                StatusClosed:          defaultStatus.Closed,
+                StatusStopped:         defaultStatus.Stopped,
+                StatusColor:           defaultStatus.Color,
+                StatusStartTime:       time.Now(),				
+			}
+			
+			if err := s.repo.Set(ctx, backendID, newWC); err != nil {
+				s.logger.ErrorContext(ctx, "Failed to add workcenter to cache",
+					slog.String("workcenter_id", backendID),
+					slog.String("error", err.Error()),)
+			}
+		}else{
+			//Update cache
+			needsUpdate := false
+			updatedWC := cacheWC
+			//Configuració
+			if cacheWC.WorkcenterName != backendWC.Name {
+				needsUpdate = true
+				updatedWC.WorkcenterName = backendWC.Name
+			}
+			if cacheWC.WorkcenterDescription != backendWC.Description {
+				needsUpdate = true
+				updatedWC.WorkcenterDescription = backendWC.Description
+			}
+			if cacheWC.AreaID != backendWC.AreaId {
+				needsUpdate = true
+				updatedWC.AreaID = backendWC.AreaId
+			}			
+			if cacheWC.MultiWoAvailable != backendWC.MultiWoAvailable {
+				updatedWC.MultiWoAvailable = backendWC.MultiWoAvailable
+				needsUpdate = true
+			}
+			//Torn
+			if cacheWC.ShiftID != backendWC.ShiftId {
+				s.logger.InfoContext(ctx, "Workcenter shift configuration changed",
+					slog.String("workcenter_id", backendID),
+					slog.String("old_shift_id", cacheWC.ShiftID.String()),
+					slog.String("new_shift_id", backendWC.ShiftId.String()),
+				)
+				needsUpdate = true
+				updatedWC.ShiftID = backendWC.ShiftId
+
+			}
+			if needsUpdate {
+				if err := s.repo.Set(ctx, backendID, updatedWC); err != nil {
+					s.logger.ErrorContext(ctx, "Failed to update workcenter in cache",
+						slog.String("workcenter_id", backendID),
+						slog.String("error", err.Error()),
+					)
+					return fmt.Errorf("error updating workcenter %s: %w", backendID, err)
+				}
+				s.logger.InfoContext(ctx, "Workcenter updated in cache",
+					slog.String("workcenter_id", backendID),
+				)
+			}
+
+			
+		}
+	}
+	s.logger.InfoContext(ctx, "BuildDTO completed %d workcenters in backend, %d in redis", len(backendWorkcenters), len(cacheWorkcenters))
 	return nil
 }
 
