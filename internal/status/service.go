@@ -16,6 +16,7 @@ type Service interface {
 	BuildDTO(ctx context.Context)error
     StatusIn(ctx context.Context, workcenterID, statusID string, reasonID *string) error
     FindByID(ctx context.Context, statusID string) (models.StatusDTO, error)
+    GetDefaultStatus(ctx context.Context) (models.StatusDTO, error)
 }
 
 type service struct {
@@ -53,34 +54,30 @@ func(s *service) BuildDTO(ctx context.Context)error{
 		return err
 	}
 
-	/*url = "/api/WorkcenterCost"
-	responseCost, err := s.client.DoGetRequest(ctx, url)	
-	if err != nil {
-		return err
-	}
-	defer responseCost.Body.Close()
-	if responseCost.StatusCode > 299 {
-		return fmt.Errorf("failed to get status costs: %s", responseCost.Status)
-	}
-
-	var statuscosts []models.StatusCostResponse
-	err = json.NewDecoder(responseCost.Body).Decode(&statuscosts)
-	if err != nil {
-		return err
-	}*/
+	err = s.repo.DeleteAll(ctx)
+    if err != nil {
+        return fmt.Errorf("error deleting statuses: %v", err)
+    }
     for _, status := range statuses {
         var dto models.StatusDTO
         dto.StatusId = status.StatusId
         dto.Description = status.Description
-        dto.Closed = status.Closed
+        dto.Closed = status.Closed        
         dto.Color = status.Color
         dto.OperatorsAllowed = status.OperatorsAllowed
+        dto.IsDefault = status.IsDefault
         dto.Stopped = status.Stopped
         
         
         key := fmt.Sprintf("%s", dto.StatusId.String())
         if err := s.repo.Set(ctx, key, dto); err != nil {
             return err
+        }
+        if dto.IsDefault {
+            fmt.Println("Default status: ", dto.Description)
+            if err := s.repo.SetDefault(ctx, key, dto); err != nil {
+                return err
+            }
         }
     }
     return nil
@@ -182,6 +179,14 @@ func (s *service) FindByID(ctx context.Context, statusID string) (models.StatusD
     st, _, err := s.repo.FindByID(ctx, key)
     if err != nil {
         return models.StatusDTO{}, fmt.Errorf("status %s not found: %w", statusID, err)
+    }
+    return st, nil
+}
+
+func(s *service) GetDefaultStatus(ctx context.Context) (models.StatusDTO, error){
+	st, err := s.repo.GetDefaultStatus(ctx)
+    if err != nil {
+        return models.StatusDTO{}, fmt.Errorf("default status not found: %w", err)
     }
     return st, nil
 }

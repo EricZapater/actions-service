@@ -44,8 +44,9 @@ func main() {
 
 	app.Services.ShiftService.BuildDTO(ctx)
 	app.Services.OperatorService.BuilDTO(ctx)
-	app.Services.WorkcenterService.BuildDTO(ctx)	
 	app.Services.StatusService.BuildDTO(ctx)
+	app.Services.WorkcenterService.BuildDTO(ctx)	
+	
 	
 	
 	

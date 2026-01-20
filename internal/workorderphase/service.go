@@ -189,6 +189,7 @@ func (s *service) WorkOrderPhaseOut(ctx context.Context, req models.WorkOrderPha
 		TimeStamp:         time.Now().Format("2006-01-02T15:04:05"),
 		WorkOrderStatusId: req.WorkOrderStatusId,
 		NextWorkOrderPhaseId: req.NextWorkOrderPhaseId,
+		NextMachineStatusId: req.NextMachineStatusId,
 	}
 		
 	response, err := s.client.DoPostRequest(ctx, "/api/WorkcenterShift/WorkOrderPhase/Out", backendRequest)
