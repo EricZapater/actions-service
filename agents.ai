@@ -1,0 +1,335 @@
+# Actions Service - AI Context File
+
+## Project Overview
+**actions-service** is a Go-based microservice that manages real-time shopfloor operations including operators, workcenters, work orders, and machine statuses. It acts as a caching and real-time synchronization layer between a backend API and frontend clients using WebSockets.
+
+## Technology Stack
+- **Language**: Go 1.24.0
+- **Web Framework**: Gin (with CORS support)
+- **Database/Cache**: Redis (primary data store)
+- **Real-time Communication**: WebSockets (gorilla/websocket)
+- **API Documentation**: Swagger/OpenAPI (swaggo)
+- **Configuration**: Environment variables (managed via Doppler)
+- **Hot Reload**: Air (for development)
+
+## Architecture
+
+### Core Concepts
+1. **DTO Pattern**: The service builds and caches DTOs (Data Transfer Objects) from the backend API in Redis
+2. **Event-Driven**: Uses WebSocket hub to broadcast changes to connected clients
+3. **Port Pattern**: Services communicate through port interfaces to avoid circular dependencies
+4. **Stateless Operations**: All state is stored in Redis, service layer is stateless
+
+### Project Structure
+```
+actions-service/
+├── cmd/api/main.go           # Application entry point
+├── internal/
+│   ├── setup/                # Dependency injection and app initialization
+│   ├── server/               # HTTP server, routes, and Swagger config
+│   ├── config/               # Configuration loading from env vars
+│   ├── models/               # Data models and DTOs
+│   ├── clients/              # HTTP client for backend API
+│   ├── ws/                   # WebSocket hub implementation
+│   ├── operator/             # Operator domain (clock in/out)
+│   ├── workcenter/           # Workcenter domain
+│   ├── workorderphase/       # Work order phase domain (in/out)
+│   ├── status/               # Machine status domain
+│   ├── shift/                # Shift management
+│   ├── area/                 # Area management
+│   ├── custom/               # Custom types and utilities
+│   └── utils/                # Shared utilities
+└── docs/                     # Swagger generated documentation
+
+```
+
+### Domain Modules
+Each domain module follows a consistent pattern:
+- **service.go**: Business logic and orchestration
+- **repository.go**: Redis data access layer
+- **handler.go**: HTTP request handlers
+- **ports.go**: Interface definitions for cross-domain communication
+
+## Key Components
+
+### 1. Setup & Initialization (`internal/setup/setup.go`)
+- **NewApp()**: Initializes all services with proper dependency injection
+- Creates HTTP client, Redis client, WebSocket hub
+- Builds service dependency graph respecting port interfaces
+- Services initialized in dependency order
+
+### 2. Server (`internal/server/server.go`)
+**Base URL**: `http://localhost:8080`
+**API Routes** (all under `/api`):
+- `GET /healthcheck` - Service health check
+- `GET /reload` - Reload DTOs from backend
+- `POST /operator/clockin` - Clock in operator to workcenter
+- `POST /operator/clockout` - Clock out operator from workcenter
+- `POST /status/in` - Change workcenter status
+- `POST /workorderphase/in` - Start work order phase on workcenter
+- `POST /workorderphase/out` - End work order phase on workcenter
+
+**WebSocket Routes** (under `/ws`):
+- `GET /general` - General broadcast channel
+- `GET /workcenter/:id` - Workcenter-specific channel
+
+**Documentation**:
+- `GET /swagger/*any` - Swagger UI
+
+### 3. Main Application Flow (`cmd/api/main.go`)
+1. Initialize app with all services
+2. Build DTOs for: Shifts, Operators, Workcenters, Statuses
+3. Start HTTP server in goroutine
+4. Run background ticker (1 minute) to update current shift
+5. Wait for shutdown signal
+
+### 4. Core Services
+
+#### Operator Service
+- **Clock In**: Assigns operator to workcenter, validates shift and status
+- **Clock Out**: Removes operator from workcenter
+- **BuildDTO**: Loads all operators from backend into Redis cache
+
+#### Workcenter Service
+- **BuildDTO**: Loads all workcenters with current shift/status info
+- **SetCurrentShift**: Updates workcenters with current shift based on time
+- Manages workcenter state including operators and work orders
+
+#### Status Service
+- **StatusIn**: Changes workcenter status, handles operator ejection if status doesn't allow operators
+- **BuildDTO**: Loads all machine statuses from backend
+- **FindByID**: Retrieves status from Redis cache
+
+#### WorkOrderPhase Service
+- **WorkOrderPhaseIn**: Starts a work order phase on a workcenter, optionally changes status
+- **WorkOrderPhaseOut**: Ends a work order phase, updates quantities, optionally starts next phase
+- Validates workcenter availability (multiWoAvailable flag)
+- Calls backend API to persist changes
+
+### 5. Data Models
+
+#### WorkcenterDTO (most important aggregate)
+```go
+{
+  workcenterId: UUID,
+  workcenterName: string,
+  multiWoAvailable: bool,           // Can have multiple work orders
+  areaId: UUID,
+  shiftId: UUID,
+  shiftDetailId: UUID,
+  shiftDetailStartTime: CustomTime,
+  shiftDetailEndTime: CustomTime,
+  statusId: UUID,
+  statusReasonId: UUID?,
+  statusName: string,
+  statusOperatorsAllowed: bool,     // If false, operators are ejected
+  statusClosed: bool,
+  statusStopped: bool,
+  statusColor: string,
+  statusStartTime: time,
+  operators: []OperatorDTO,         // Currently clocked in
+  workorders: []WorkOrderDTO        // Currently active work orders
+}
+```
+
+#### OperatorDTO
+```go
+{
+  operatorId: UUID,
+  operatorName: string,
+  workcenterIds: []UUID,            // Workcenters where operator is clocked in
+  clockInTime: time
+}
+```
+
+#### WorkOrderDTO
+```go
+{
+  workOrderPhaseId: string,
+  workOrderCode: string,
+  workOrderPhaseCode: string,
+  workOrderPhaseDescription: string,
+  plannedQuantity: int,
+  referenceCode: string,
+  referenceDescription: string,
+  startTime: string
+}
+```
+
+#### WorkOrderPhase Request Models
+**Frontend Request** (`WorkOrderPhaseOutRequest`):
+```go
+{
+  workcenterId: string,
+  workOrderPhaseId: string,
+  nextWorkOrderPhaseId: string? (nullable),
+  workOrderStatusId: string? (nullable),
+  quantityOk: int? (nullable),
+  quantityKo: int? (nullable),
+  timestamp: string? (nullable)
+}
+```
+
+**Backend Request** (`BackendWorkOrderPhaseOutRequest`):
+```go
+{
+  workcenterId: string (required),
+  workOrderPhaseId: string (required),
+  timestamp: string (required, not pointer),
+  workOrderStatusId: string? (optional),
+  nextWorkOrderPhaseId: string? (optional)
+}
+```
+
+**Note**: Quantities (OK/KO) are sent in a separate request to `/api/WorkcenterShift/Workcenter/WorkOrderPhase/Quantities` before the phase out request.
+
+### 6. Configuration (`internal/config/config.go`)
+Required environment variables:
+- `BACKEND_URL`: URL of the backend API
+- `API_PORT`: Port for this service (default: 8080)
+- `REDIS_URL`: Redis connection string (e.g., "localhost:6379")
+
+Currently managed via **Doppler** (see running command: `doppler run -- air`)
+
+### 7. WebSocket Hub (`internal/ws/`)
+- Manages client connections per channel (general + per-workcenter)
+- Broadcasts updates when state changes
+- Message format: `{ type: string, payload: any }`
+
+## Common Patterns
+
+### Error Handling
+- Services return `error` type
+- HTTP handlers check errors and return appropriate status codes
+- Backend API failures are logged and propagated
+
+### Port Interfaces
+To avoid circular dependencies, services use port interfaces:
+- `WorkcenterPort`: Used by operator/status/workorderphase services
+- `StatusPort`: Used by workorderphase service
+- `OperatorPort`: Used by status service
+
+### Redis Keys
+- Operators: `{operatorId}`
+- Workcenters: `{workcenterId}`
+- Statuses: `{statusId}`
+- Shifts: `{shiftId}`
+
+### Backend API Integration
+- All backend calls go through `clients.HttpBackendClient`
+- Endpoints called:
+  - `GET /api/Operator` - Get all operators
+  - `GET /api/Workcenter` - Get all workcenters
+  - `GET /api/MachineStatus` - Get all statuses
+  - `GET /api/Shift` - Get all shifts
+  - `POST /api/WorkcenterShift/Workcenter/ChangeStatus` - Change status
+  - `POST /api/WorkcenterShift/Workcenter/WorkOrderPhase/In` - Start work order
+  - `POST /api/WorkcenterShift/Workcenter/WorkOrderPhase/Out` - End work order
+  - `POST /api/WorkcenterShift/Workcenter/WorkOrderPhase/Quantities` - Update quantities
+
+## Development Workflow
+
+### Running the Service
+```bash
+# Using Doppler for env vars + Air for hot reload
+doppler run -- air
+
+# The service will:
+# 1. Load configuration from environment
+# 2. Connect to Redis
+# 3. Build DTOs from backend API
+# 4. Start HTTP server on configured port
+# 5. Start WebSocket hub
+# 6. Run background shift updater
+```
+
+### Adding a New Endpoint
+1. Define request/response models in `internal/models/`
+2. Add handler method in appropriate domain handler
+3. Add service method in domain service
+4. Add repository method if Redis access needed
+5. Register route in `internal/server/server.go`
+6. Add Swagger annotations
+7. Run `swag init` to regenerate docs
+
+### Adding a New Domain
+1. Create package under `internal/`
+2. Implement: service.go, repository.go, handler.go, ports.go
+3. Add to `setup.Services` struct
+4. Initialize in `setup.NewApp()`
+5. Add handlers to `setup.Handlers`
+6. Register routes in `server.Run()`
+
+## Important Business Rules
+
+### Operator Clock In/Out
+- Operator can only clock in if workcenter status allows operators (`statusOperatorsAllowed`)
+- Operator can be clocked into multiple workcenters simultaneously
+- When status changes to one that doesn't allow operators, all operators are automatically clocked out
+
+### Work Order Phase Management
+- Workcenter must have `multiWoAvailable=true` to have multiple work orders
+- Starting a work order phase can optionally change the workcenter status
+- Ending a work order phase can:
+  - Update quantities (OK/KO)
+  - Start next work order phase
+  - Change work order status
+
+### Shift Management
+- Background ticker runs every minute to update current shift
+- Shifts have details with start/end times
+- Workcenters are updated with current shift detail based on time
+
+### Status Changes
+- Status changes are persisted to backend API
+- If status doesn't allow operators, all operators are ejected
+- Status changes trigger WebSocket broadcasts
+
+## Testing & Debugging
+
+### Swagger UI
+Access at: `http://localhost:8080/swagger/index.html`
+
+### WebSocket Testing
+Connect to:
+- General updates: `ws://localhost:8080/ws/general`
+- Workcenter updates: `ws://localhost:8080/ws/workcenter/{id}`
+
+### Common Issues
+1. **Redis connection**: Ensure Redis is running and REDIS_URL is correct
+2. **Backend API**: Ensure BACKEND_URL is accessible
+3. **DTO build failures**: Check backend API responses and data format
+4. **Circular dependencies**: Use port interfaces, never import service packages directly
+
+## Recent Changes & Context
+- Service recently migrated to Redis-only storage (no database)
+- Error handling improved to return 4xx status codes for business logic errors
+- WebSocket broadcasting added for real-time updates
+- Port pattern implemented to resolve circular dependencies
+
+## AI Assistant Guidelines
+
+### When Making Changes
+1. **Respect the port pattern**: Never create circular dependencies between services
+2. **Update DTOs**: If backend models change, update corresponding DTOs
+3. **Broadcast changes**: Use hub.Broadcast() when state changes
+4. **Validate business rules**: Check operator allowance, multi-WO availability, etc.
+5. **Call backend API**: Persist important state changes to backend
+6. **Update Swagger**: Add annotations for new endpoints
+
+### When Debugging
+1. Check Redis for current state
+2. Verify backend API is responding correctly
+3. Check WebSocket messages for state propagation
+4. Review service initialization order in setup.go
+5. Validate environment variables are set
+
+### When Adding Features
+1. Identify the domain (operator, workcenter, status, workorderphase)
+2. Define models in `internal/models/`
+3. Implement service logic with proper error handling
+4. Add repository methods for Redis access
+5. Create HTTP handlers
+6. Register routes
+7. Add Swagger documentation
+8. Test via Swagger UI and WebSocket connections

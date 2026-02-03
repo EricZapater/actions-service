@@ -2,6 +2,7 @@ package status
 
 import (
 	"actions-service/internal/models"
+	"actions-service/internal/observability"
 	"errors"
 	"net/http"
 
@@ -27,8 +28,13 @@ func (h *Handler) StatusIn(c *gin.Context) {
 			Content: err.Error(),
 		})
 		return
-	}
-	if err := h.service.StatusIn(c.Request.Context(), req.WorkcenterID.String(), req.StatusID.String()); err != nil {
+	}	
+	var statusReasonId *string
+	if req.StatusReasonId != nil {
+		reasonStr := req.StatusReasonId.String()
+		statusReasonId = &reasonStr
+	}	
+	if err := h.service.StatusIn(c.Request.Context(), req.WorkcenterID.String(), req.StatusID.String(), statusReasonId); err != nil {
 		var svcErr *ServiceError
 		if errors.As(err, &svcErr) {
 			c.JSON(svcErr.StatusCode, models.ResponseMessage{
@@ -45,6 +51,10 @@ func (h *Handler) StatusIn(c *gin.Context) {
 		})
 		return
 	}
+	
+	// Record metric
+	observability.RecordStatusChange(c.Request.Context(), req.WorkcenterID.String(), req.StatusID.String())
+	
 	c.JSON(http.StatusOK, models.ResponseMessage{
 		Result:  "success",
 		Message: "Status in registered successfully",

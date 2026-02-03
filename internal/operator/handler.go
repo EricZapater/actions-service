@@ -2,6 +2,7 @@ package operator
 
 import (
 	"actions-service/internal/models"
+	"actions-service/internal/observability"
 	"errors"
 	"net/http"
 
@@ -56,6 +57,10 @@ func (h *Handler) ClockIn(c *gin.Context) {
 		})
 		return
 	}
+	
+	// Record metric
+	observability.RecordOperatorClockIn(c.Request.Context(), req.OperatorID.String(), req.WorkcenterID.String())
+	
 	c.JSON(http.StatusOK, models.ResponseMessage{
 		Result:  "success",
 		Message: "Clock in registered successfully",
@@ -102,6 +107,10 @@ func (h *Handler) ClockOut(c *gin.Context) {
 		})
 		return
 	}
+	
+	// Record metric
+	observability.RecordOperatorClockOut(c.Request.Context(), req.OperatorID.String(), req.WorkcenterID.String())
+	
 	c.JSON(http.StatusOK, models.ResponseMessage{
 		Result:  "success",
 		Message: "Clock out registered successfully",

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"actions-service/internal/observability"
 	"actions-service/internal/server"
 	"actions-service/internal/setup"
 	"context"
@@ -20,10 +21,32 @@ func main() {
 		log.Fatalf("Failed to initialize application: %v", err)
 	}
 
+	// Initialize observability
+	shutdown, err := observability.InitTelemetry(ctx, observability.Config{
+		OtelEndpoint:   app.Cfg.OtelEndpoint,
+		ServiceName:    app.Cfg.ServiceName,
+		ServiceVersion: app.Cfg.ServiceVersion,
+		Environment:    app.Cfg.Environment,
+	})
+	if err != nil {
+		log.Fatalf("Failed to initialize telemetry: %v", err)
+	}
+	defer func() {
+		if err := shutdown(ctx); err != nil {
+			log.Printf("Error shutting down telemetry: %v", err)
+		}
+	}()
+
+	// Initialize metrics
+	if err := observability.InitMetrics(); err != nil {
+		log.Fatalf("Failed to initialize metrics: %v", err)
+	}
+
 	app.Services.ShiftService.BuildDTO(ctx)
 	app.Services.OperatorService.BuilDTO(ctx)
-	app.Services.WorkcenterService.BuildDTO(ctx)	
 	app.Services.StatusService.BuildDTO(ctx)
+	app.Services.WorkcenterService.BuildDTO(ctx)	
+	
 	
 	
 	

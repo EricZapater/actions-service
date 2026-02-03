@@ -36,3 +36,6 @@ internal/clients/backend_client.go
 
 # Docker
 docker-compose.override.yml
+
+#air
+.air.toml
