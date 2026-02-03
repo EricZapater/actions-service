@@ -6,10 +6,12 @@ import (
 	"actions-service/internal/operator"
 	"actions-service/internal/shift"
 	"actions-service/internal/status"
+	"actions-service/internal/validator"
 	"actions-service/internal/workcenter"
 	"actions-service/internal/workorderphase"
 	"actions-service/internal/ws"
 	"context"
+	"log"
 
 	"github.com/redis/go-redis/v9"
 )
@@ -20,6 +22,7 @@ type Services struct {
 	OperatorService operator.Service
 	StatusService status.Service
 	WorkOrderPhaseService workorderphase.Service
+	ValidatorService validator.Service  // ⭐ Add validator to services
 }
 
 type Handlers struct {
@@ -67,12 +70,43 @@ func NewApp(ctx context.Context) (*App, error) {
 	statusHandler := status.NewHandler(statusService)		
 	workorderphaseHandler := workorderphase.NewHandler(workorderphaseService)
 
+	workcenterRepo := workcenter.NewWorkcenterRepository(state, redisClient)
+	workcenterService := workcenter.NewWorkcenterService(client, *workcenterRepo, shiftService, hub)
+
+	operatorRepo := operator.NewOperatorRepository(state, redisClient)
+    statusRepo := status.NewStatusRepository(state, redisClient)
+
+	// ⭐ STEP 1: Create base services WITHOUT validator (to avoid circular dependency)
+	log.Println("🔧 Creating base services...")
+	operatorServiceBase := operator.NewOperatorService(client, *operatorRepo, workcenterService, hub, nil)
+
+	// ⭐ STEP 2: Create VALIDATOR using base services (via ports)
+	log.Println("✅ Creating validator service...")
+	validatorService := validator.NewValidatorService(
+		operatorServiceBase,  // implements OperatorPort
+		statusRepo,           // implements StatusRepository
+		nil,                  // no WorkOrderPhasePort (not needed yet)
+		workcenterService,    // implements WorkcenterPort
+	)
+
+	// ⭐ STEP 3: Re-create services WITH validator injected
+	log.Println("🔄 Re-creating services with validator...")
+	operatorService := operator.NewOperatorService(client, *operatorRepo, workcenterService, hub, validatorService)
+	statusService := status.NewStatusService(client, *statusRepo, workcenterService, hub, validatorService)
+
+	log.Println("✅ All services created successfully!")
+
+	// Create handlers
+	operatorHandler := operator.NewHandler(operatorService)
+	statusHandler := status.NewHandler(statusService)
+
 	services := Services{
 		ShiftService: shiftService,
 		WorkcenterService: workcenterService,
 		OperatorService: operatorService,
 		StatusService: statusService,
 		WorkOrderPhaseService: workorderphaseService,
+		ValidatorService: validatorService,
 	}
 
 	handlers := Handlers{
