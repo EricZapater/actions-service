@@ -3,6 +3,7 @@ package status
 import (
 	"actions-service/internal/clients"
 	"actions-service/internal/models"
+	"actions-service/internal/validator"
 	"actions-service/internal/ws"
 	"context"
 	"encoding/json"
@@ -18,18 +19,20 @@ type Service interface {
 }
 
 type service struct {
-	client clients.HttpBackendClient	
-    hub *ws.Hub
-    repo Repository
-    port WorkcenterPort
+	client    clients.HttpBackendClient	
+    hub       *ws.Hub
+    repo      Repository
+    port      WorkcenterPort
+    validator validator.Service  // ⭐ Validator instead of direct operator dependency
 }
 
-func NewStatusService(client clients.HttpBackendClient, repo Repository, port WorkcenterPort, hub *ws.Hub) Service{
+func NewStatusService(client clients.HttpBackendClient, repo Repository, port WorkcenterPort, hub *ws.Hub, validator validator.Service) Service{
 	return &service{
-		client: client,
-        repo: repo,
-        port: port,
-		hub: hub,
+		client:    client,
+        repo:      repo,
+        port:      port,
+		hub:       hub,
+		validator: validator,
 	}
 }
 
@@ -91,6 +94,13 @@ func(s *service) BuildDTO(ctx context.Context)error{
 }
 
 func (s *service) StatusIn(ctx context.Context, workcenterID, statusID string) error {
+    // ⭐ VALIDATE AND EXECUTE: Let validator handle business rules
+    // This will automatically remove operators/workorders if new status doesn't allow them
+    if err := s.validator.ValidateStatusChange(ctx, workcenterID, statusID); err != nil {
+        return fmt.Errorf("validation failed: %w", err)
+    }
+
+    // Get workcenter (already updated by validator if needed)
     wc, err := s.port.GetWorkcenterDTO(ctx, workcenterID)
     if err != nil {
         return fmt.Errorf("error checking workcenter existence: %w", err)

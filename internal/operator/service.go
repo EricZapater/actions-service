@@ -3,6 +3,7 @@ package operator
 import (
 	"actions-service/internal/clients"
 	"actions-service/internal/models"
+	"actions-service/internal/validator"
 	"actions-service/internal/ws"
 	"context"
 	"encoding/json"
@@ -20,18 +21,20 @@ type Service interface {
 }
 
 type service struct {
-	client clients.HttpBackendClient
-	repo Repository	
-	port WorkcenterPort
-	hub *ws.Hub
+	client    clients.HttpBackendClient
+	repo      Repository	
+	port      WorkcenterPort
+	hub       *ws.Hub
+	validator validator.Service  // ⭐ Validator for business rules
 }
 
-func NewOperatorService(client clients.HttpBackendClient, repo Repository, port WorkcenterPort, hub *ws.Hub) Service {
+func NewOperatorService(client clients.HttpBackendClient, repo Repository, port WorkcenterPort, hub *ws.Hub, validator validator.Service) Service {
 	return &service{
-		client: client,
-		repo: repo,
-		port: port,
-		hub: hub,
+		client:    client,
+		repo:      repo,
+		port:      port,
+		hub:       hub,
+		validator: validator,
 	}
 }
 
@@ -95,6 +98,11 @@ func (s *service) BuilDTO(ctx context.Context)error {
 }
 
 func (s *service) ClockIn(ctx context.Context, operatorID, workcenterID string)error {
+	// ⭐ VALIDATE: Check if operator can clock in (status allows operators)
+	if err := s.validator.ValidateOperatorClockIn(ctx, operatorID, workcenterID); err != nil {
+		return err  // Return validation error (e.g., 403 Forbidden)
+	}
+
 	wc, err := s.port.GetWorkcenterDTO(ctx, workcenterID)
 	if err != nil {
 		return fmt.Errorf("error checking workcenter existence: %w", err)
