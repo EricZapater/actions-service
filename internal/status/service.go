@@ -84,7 +84,7 @@ func(s *service) BuildDTO(ctx context.Context)error{
     return nil
 }
 
-func (s *service) StatusIn(ctx context.Context, workcenterID, statusID string) error {
+func (s *service) StatusIn(ctx context.Context, workcenterID, statusID string, reasonID *string) error {
     // ⭐ VALIDATE AND EXECUTE: Let validator handle business rules
     // This will automatically remove operators/workorders if new status doesn't allow them
     if err := s.validator.ValidateStatusChange(ctx, workcenterID, statusID); err != nil {
@@ -100,22 +100,12 @@ func (s *service) StatusIn(ctx context.Context, workcenterID, statusID string) e
         return fmt.Errorf("workcenter %s not found", workcenterID)
     }
 
-    //key := fmt.Sprintf("%s:%s", workcenterID, statusID)
-    //st, _, err := s.repo.FindByID(ctx, key)
     st, err := s.FindByID(ctx, statusID)
     if err != nil {
         return fmt.Errorf("status %s not found: %w", statusID, err)
     }
 
 
-    if !st.OperatorsAllowed {
-        //operators out
-        for _, operator := range wc.Operators {            
-            s.operatorPort.ClockOut(ctx, operator.OperatorID.String(), workcenterID)
-        }
-        // Clear operators from memory to avoid overwriting the ClockOut changes
-        wc.Operators = []models.OperatorDTO{}
-    }
 
     // backend call
     req := models.StatusInRequest{}
@@ -146,6 +136,7 @@ func (s *service) StatusIn(ctx context.Context, workcenterID, statusID string) e
     wc.StatusReasonId = req.StatusReasonId
     wc.StatusName = st.Description
     wc.StatusOperatorsAllowed = st.OperatorsAllowed
+    wc.StatusWorkOrdersAllowed = st.WorkOrdersAllowed
     wc.StatusClosed = st.Closed
     wc.StatusStopped = st.Stopped
     wc.StatusColor = st.Color
@@ -164,12 +155,12 @@ func (s *service) StatusIn(ctx context.Context, workcenterID, statusID string) e
         Payload: wc,
     })
 
-	workcenters, err := s.workcenterPort.GetAllWorkcenters(ctx)
+	workcenters, err := s.port.GetAllWorkcenters(ctx)
 	if err != nil {
 		return fmt.Errorf("error listing workcenters: %w", err)
 	}
 
-	s.hub.Broadcast("general", struct {
+	s.hub.Broadcast("General", struct {
 			Type string `json:"type"`
 			Payload interface{} `json:"payload"`
 		}{

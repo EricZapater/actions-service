@@ -23,12 +23,13 @@ type WorkcenterDTO struct {
 	StatusReasonId *uuid.UUID `json:"statusReasonId"`
 	StatusName                  string         `json:"statusName"`
 	StatusOperatorsAllowed      bool           `json:"statusOperatorsAllowed"`
+	StatusWorkOrdersAllowed     bool           `json:"statusWorkOrdersAllowed"`
 	StatusClosed                bool           `json:"statusClosed"`
 	StatusStopped               bool           `json:"statusStopped"`
 	StatusColor                 string         `json:"statusColor"`
 	StatusStartTime             time.Time      `json:"statusStartTime"`
 	Operators                   []OperatorDTO  `json:"operators"`
-	WorkOrders                  []WorkOrderDTO `json:"Workorders"`
+	WorkOrders                  []WorkOrderDTO `json:"workorders"`
 }
 
 type Workcenter struct {
