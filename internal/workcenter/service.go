@@ -130,7 +130,12 @@ func (s *service) BuildDTO(ctx context.Context)error {
                 StatusColor:           defaultStatus.Color,
                 StatusStartTime:       time.Now(),				
 			}
-			
+			/*parsedStatusID:= defaultStatus.StatusId.String()
+			if err := s.statusPort.StatusIn(ctx, backendID, parsedStatusID, nil); err != nil {
+				s.logger.ErrorContext(ctx, "Failed to set status in cache",
+					slog.String("workcenter_id", backendID),
+					slog.String("error", err.Error()),)
+			}*/
 			if err := s.repo.Set(ctx, backendID, newWC); err != nil {
 				s.logger.ErrorContext(ctx, "Failed to add workcenter to cache",
 					slog.String("workcenter_id", backendID),
@@ -184,7 +189,7 @@ func (s *service) BuildDTO(ctx context.Context)error {
 			
 		}
 	}
-	s.logger.InfoContext(ctx, "BuildDTO completed %d workcenters in backend, %d in redis", len(backendWorkcenters), len(cacheWorkcenters))
+	s.logger.InfoContext(ctx, "BuildDTO completed %s workcenters in backend, %s in redis", len(backendWorkcenters), len(cacheWorkcenters))
 	return nil
 }
 
