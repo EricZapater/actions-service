@@ -41,6 +41,7 @@ func NewService(redisRepo *RedisRepo, client clients.HttpBackendClient, statusSe
 }
 
 func (s *Service) InitDTO(ctx context.Context) error {
+	log.Println("InitDTO")
 	url := "/api/WorkcenterShift/Currents"
 	response, err := s.client.DoGetRequest(ctx, url)
 	if err != nil {
@@ -56,7 +57,7 @@ func (s *Service) InitDTO(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	fmt.Println("WorkcenterShifts: ", len(workcenterShifts))
+	
 	var workcenters []models.WorkcenterDTO
 	for _, wc := range workcenterShifts {
 		fmt.Println("Workcenter: ", wc)
@@ -71,13 +72,13 @@ func (s *Service) InitDTO(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	log.Println("Workcenters: ", len(workcenters))
 	return nil
 }
 
 func (s *Service) PopulateDTO(ctx context.Context, wcs models.WorkcenterShiftDTO) (models.WorkcenterDTO, error) {
-	//recuperar shift
-	fmt.Println("WorkcenterShiftId: ", wcs.Details[0].WorkCenterShiftId)
-	shift, err := s.shiftService.FindByID(ctx, wcs.Details[0].WorkCenterShiftId)
+	//recuperar shift	
+	shift, err := s.shiftService.FindShiftByDetailID(ctx, wcs.ShiftDetailID)
 	if err != nil {
 		return models.WorkcenterDTO{}, err
 	}	
@@ -98,14 +99,22 @@ func (s *Service) PopulateDTO(ctx context.Context, wcs models.WorkcenterShiftDTO
 		if err != nil {
 			return models.WorkcenterDTO{}, err
 		}
-		operator, err := s.operatorService.FindByID(ctx, detail.OperatorId)
-		if err != nil {
-			return models.WorkcenterDTO{}, err
+		log.Println("operator: ", detail.OperatorId)
+		operator := models.OperatorDTO{}
+		if detail.OperatorId != "" {
+			operator, err = s.operatorService.FindByID(ctx, detail.OperatorId)
+			if err != nil {
+				return models.WorkcenterDTO{}, err
+			}
 		}
-		workorderphase, err := s.workorderphaseService.FindByID(ctx, detail.WorkOrderPhaseId)
-		if err != nil {
-			return models.WorkcenterDTO{}, err
+		workorderphase := models.WorkOrderPhaseResponse{}
+		if detail.WorkOrderPhaseId != "" {
+			workorderphase, err = s.workorderphaseService.FindByID(ctx, detail.WorkOrderPhaseId)
+			if err != nil {
+				return models.WorkcenterDTO{}, err
+			}
 		}
+		
 		workorder := models.WorkOrderDTO{
 			WorkOrderPhaseId: detail.WorkOrderPhaseId,			
 			PlannedQuantity: workorderphase.PlannedQuantity,
@@ -132,8 +141,12 @@ func (s *Service) PopulateDTO(ctx context.Context, wcs models.WorkcenterShiftDTO
 		workcenter.StatusStopped = status.Stopped
 		workcenter.StatusColor = status.Color
 		workcenter.StatusStartTime, _ = time.Parse(layout, detail.StartTime)
-		workcenter.Operators = append(workcenter.Operators, operator)
-		workcenter.WorkOrders = append(workcenter.WorkOrders, workorder)
+		if detail.OperatorId != "" {
+			workcenter.Operators = append(workcenter.Operators, operator)
+		}
+		if detail.WorkOrderPhaseId != "" {
+			workcenter.WorkOrders = append(workcenter.WorkOrders, workorder)
+		}
 	}
 	return workcenter, nil
 }

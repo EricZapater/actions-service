@@ -7,4 +7,5 @@ import (
 
 type StatusPort interface {
 	GetDefaultStatus(ctx context.Context) (models.StatusDTO, error)
+	//StatusIn(ctx context.Context, workcenterID, statusID string, reasonID *string) error
 }

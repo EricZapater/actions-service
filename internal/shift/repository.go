@@ -78,3 +78,18 @@ func (r *Repository) FindShiftDetailByID(ctx context.Context, shiftID, detailID 
     
     return models.ShiftDetailDTO{}, ErrShiftDetailNotFound 
 }
+
+func(r *Repository) FindShiftByDetailID(ctx context.Context, detailID string) (models.ShiftDTO, error) {
+    r.mu.RLock()
+    defer r.mu.RUnlock()
+    
+    for _, shift := range r.shifts {
+        for _, detail := range shift.ShiftDetails {
+            if detail.ID.String() == detailID {
+                return shift, nil
+            }
+        }
+    }
+    
+    return models.ShiftDTO{}, ErrShiftDetailNotFound 
+}

@@ -18,6 +18,7 @@ type Service interface {
 	FindCurrentShift(ctx context.Context, now time.Time, shiftID uuid.UUID) (models.ShiftDetailDTO, error)
 	FindByID(ctx context.Context, id string) (models.ShiftDTO, error)
 	FindShiftDetailByID(ctx context.Context, shiftID, detailID string) (models.ShiftDetailDTO, error)
+	FindShiftByDetailID(ctx context.Context, detailID string) (models.ShiftDTO, error)
 }
 
 type service struct {
@@ -104,4 +105,8 @@ func (s *service) FindByID(ctx context.Context, id string) (models.ShiftDTO, err
 
 func (s *service) FindShiftDetailByID(ctx context.Context, shiftID, detailID string) (models.ShiftDetailDTO, error) {
     return s.repo.FindShiftDetailByID(ctx, shiftID, detailID)
+}
+
+func (s *service) FindShiftByDetailID(ctx context.Context, detailID string) (models.ShiftDTO, error) {
+    return s.repo.FindShiftByDetailID(ctx, detailID)
 }

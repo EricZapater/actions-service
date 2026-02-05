@@ -52,6 +52,7 @@ func main() {
 	
 	
 	go server.Run(app)
+	
 	endTime := time.Now()	
 	log.Printf("Startup time: %v", endTime.Sub(startTime))
 
@@ -75,7 +76,5 @@ func main() {
 	
 	<-stopChan // Espera senyal per aturar l'aplicació
 	log.Println("Application stopped")
-	
-
 }
 
