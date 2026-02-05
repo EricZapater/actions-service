@@ -44,7 +44,7 @@ func NewValidatorService(
 // ValidateStatusChange validates and executes necessary actions when status changes
 func (s *service) ValidateStatusChange(ctx context.Context, workcenterID, newStatusID string) error {
 	// 1. Get the new status
-	key := fmt.Sprintf("%s:%s", workcenterID, newStatusID)
+	key := fmt.Sprintf("%s",newStatusID)
 	newStatus, _, err := s.statusRepo.FindByID(ctx, key)
 	if err != nil {
 		return fmt.Errorf("failed to get new status: %w", err)

@@ -233,7 +233,7 @@ func(s *service) SetCurrentShift(ctx context.Context)error{
 		if err != nil {
 			return fmt.Errorf("error listing workcenters: %w", err)
 		}
-		s.hub.Broadcast("general", struct {
+		s.hub.Broadcast("General", struct {
 			Type string `json:"type"`
 			Payload interface{} `json:"payload"`
 		}{

@@ -16,6 +16,8 @@ type Service interface {
 	BuildDTO(ctx context.Context) error
 	getShiftDetails(ctx context.Context, shiftID uuid.UUID) ([]models.ShiftDetailDTO, error)
 	FindCurrentShift(ctx context.Context, now time.Time, shiftID uuid.UUID) (models.ShiftDetailDTO, error)
+	FindByID(ctx context.Context, id string) (models.ShiftDTO, error)
+	FindShiftDetailByID(ctx context.Context, shiftID, detailID string) (models.ShiftDetailDTO, error)
 }
 
 type service struct {
@@ -94,4 +96,12 @@ func (s *service) FindCurrentShift(ctx context.Context, now time.Time, shiftID u
 		return models.ShiftDetailDTO{}, err
 	}
 	return shiftDetail, nil
+}
+
+func (s *service) FindByID(ctx context.Context, id string) (models.ShiftDTO, error) {
+    return s.repo.FindByID(ctx, id)
+}
+
+func (s *service) FindShiftDetailByID(ctx context.Context, shiftID, detailID string) (models.ShiftDetailDTO, error) {
+    return s.repo.FindShiftDetailByID(ctx, shiftID, detailID)
 }

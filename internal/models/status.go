@@ -38,6 +38,7 @@ type StatusDTO struct {
 	Color string `json:"color"`
 	Stopped bool `json:"stopped"`
 	OperatorsAllowed bool `json:"operatorsAllowed"`	
+	WorkOrdersAllowed bool `json:"workOrdersAllowed"`
 	IsDefault bool `json:"default"`
 	Closed bool `json:"closed"`
 	Cost float32 `json:"cost"`

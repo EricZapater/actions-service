@@ -1,6 +1,7 @@
 package setup
 
 import (
+	"actions-service/internal/bootstrap"
 	"actions-service/internal/clients"
 	"actions-service/internal/config"
 	"actions-service/internal/operator"
@@ -11,7 +12,6 @@ import (
 	"actions-service/internal/workorderphase"
 	"actions-service/internal/ws"
 	"context"
-	"log"
 
 	"github.com/redis/go-redis/v9"
 )
@@ -22,7 +22,8 @@ type Services struct {
 	OperatorService operator.Service
 	StatusService status.Service
 	WorkOrderPhaseService workorderphase.Service
-	ValidatorService validator.Service  // ⭐ Add validator to services
+	ValidatorService validator.Service  
+	BootstrapService bootstrap.Service
 }
 
 type Handlers struct {
@@ -59,29 +60,15 @@ func NewApp(ctx context.Context) (*App, error) {
 	operatorRepo := operator.NewOperatorRepository(redisClient)
 	statusRepo := status.NewStatusRepository(redisClient)
 	workorderphaseRepo := workorderphase.NewWorkOrderPhaseRepository(redisClient)
+	bootstrapRepo := bootstrap.NewRedisRepository(redisClient)
 
 	shiftService := shift.NewShiftService(client, *shiftRepo)
-	workcenterService := workcenter.NewWorkcenterService(client, *workcenterRepo, shiftService,statusRepo, hub)	
-	operatorService := operator.NewOperatorService(client, *operatorRepo, workcenterService, hub)
-	statusService := status.NewStatusService(client, *statusRepo, workcenterService, operatorService, hub)
-	workorderphaseService := workorderphase.NewWorkOrderPhaseService(client, *workorderphaseRepo, workcenterService, hub, statusService, operatorService)
-
-	operatorHandler := operator.NewHandler(operatorService)    
-	statusHandler := status.NewHandler(statusService)		
-	workorderphaseHandler := workorderphase.NewHandler(workorderphaseService)
-
-	workcenterRepo := workcenter.NewWorkcenterRepository(state, redisClient)
-	workcenterService := workcenter.NewWorkcenterService(client, *workcenterRepo, shiftService, hub)
-
-	operatorRepo := operator.NewOperatorRepository(state, redisClient)
-    statusRepo := status.NewStatusRepository(state, redisClient)
-
-	// ⭐ STEP 1: Create base services WITHOUT validator (to avoid circular dependency)
-	log.Println("🔧 Creating base services...")
+	workcenterService := workcenter.NewWorkcenterService(client, *workcenterRepo, shiftService,statusRepo, hub)		
+	statusServiceBase := status.NewStatusService(client, *statusRepo, workcenterService, hub, nil)
 	operatorServiceBase := operator.NewOperatorService(client, *operatorRepo, workcenterService, hub, nil)
+	workorderphaseService := workorderphase.NewWorkOrderPhaseService(client, *workorderphaseRepo, workcenterService, hub, statusServiceBase, operatorServiceBase)	
+	
 
-	// ⭐ STEP 2: Create VALIDATOR using base services (via ports)
-	log.Println("✅ Creating validator service...")
 	validatorService := validator.NewValidatorService(
 		operatorServiceBase,  // implements OperatorPort
 		statusRepo,           // implements StatusRepository
@@ -89,16 +76,12 @@ func NewApp(ctx context.Context) (*App, error) {
 		workcenterService,    // implements WorkcenterPort
 	)
 
-	// ⭐ STEP 3: Re-create services WITH validator injected
-	log.Println("🔄 Re-creating services with validator...")
 	operatorService := operator.NewOperatorService(client, *operatorRepo, workcenterService, hub, validatorService)
 	statusService := status.NewStatusService(client, *statusRepo, workcenterService, hub, validatorService)
-
-	log.Println("✅ All services created successfully!")
-
-	// Create handlers
+	bootstrapService := bootstrap.NewService(bootstrapRepo, client, statusService, operatorService, shiftService, workorderphaseService)
 	operatorHandler := operator.NewHandler(operatorService)
 	statusHandler := status.NewHandler(statusService)
+	workorderphaseHandler := workorderphase.NewHandler(workorderphaseService)
 
 	services := Services{
 		ShiftService: shiftService,
@@ -107,6 +90,7 @@ func NewApp(ctx context.Context) (*App, error) {
 		StatusService: statusService,
 		WorkOrderPhaseService: workorderphaseService,
 		ValidatorService: validatorService,
+		BootstrapService: *bootstrapService,
 	}
 
 	handlers := Handlers{
