@@ -42,10 +42,10 @@ func main() {
 		log.Fatalf("Failed to initialize metrics: %v", err)
 	}
 
+	app.Services.BootstrapService.InitDTO(ctx)	
 	app.Services.ShiftService.BuildDTO(ctx)
 	app.Services.OperatorService.BuilDTO(ctx)
-	app.Services.StatusService.BuildDTO(ctx)
-	app.Services.BootstrapService.InitDTO(ctx)	
+	app.Services.StatusService.BuildDTO(ctx)	
 	app.Services.WorkcenterService.BuildDTO(ctx)	
 	
 	
