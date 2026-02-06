@@ -42,6 +42,7 @@ func NewService(redisRepo *RedisRepo, client clients.HttpBackendClient, statusSe
 
 func (s *Service) InitDTO(ctx context.Context) error {
 	log.Println("InitDTO")
+	s.RedisRepo.FlushDB(ctx)
 	url := "/api/WorkcenterShift/Currents"
 	response, err := s.client.DoGetRequest(ctx, url)
 	if err != nil {
