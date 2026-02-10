@@ -3,6 +3,7 @@ package status
 import (
 	"actions-service/internal/clients"
 	"actions-service/internal/models"
+	"actions-service/internal/validator"
 	"actions-service/internal/ws"
 	"context"
 	"encoding/json"
@@ -16,23 +17,24 @@ type Service interface {
 	BuildDTO(ctx context.Context)error
     StatusIn(ctx context.Context, workcenterID, statusID string, reasonID *string) error
     FindByID(ctx context.Context, statusID string) (models.StatusDTO, error)
+    GetDefaultStatus(ctx context.Context) (models.StatusDTO, error)
 }
 
 type service struct {
-	client clients.HttpBackendClient	
-    hub *ws.Hub
-    repo Repository
-    workcenterPort WorkcenterPort
-    operatorPort OperatorPort
+	client    clients.HttpBackendClient	
+    hub       *ws.Hub
+    repo      Repository
+    port      WorkcenterPort
+    validator validator.Service  // ⭐ Validator instead of direct operator dependency
 }
 
-func NewStatusService(client clients.HttpBackendClient, repo Repository, workcenterPort WorkcenterPort, operatorPort OperatorPort, hub *ws.Hub) Service{
+func NewStatusService(client clients.HttpBackendClient, repo Repository, port WorkcenterPort, hub *ws.Hub, validator validator.Service) Service{
 	return &service{
-		client: client,
-        repo: repo,
-        workcenterPort: workcenterPort,
-        operatorPort: operatorPort,
-		hub: hub,
+		client:    client,
+        repo:      repo,
+        port:      port,
+		hub:       hub,
+		validator: validator,
 	}
 }
 
@@ -53,28 +55,18 @@ func(s *service) BuildDTO(ctx context.Context)error{
 		return err
 	}
 
-	/*url = "/api/WorkcenterCost"
-	responseCost, err := s.client.DoGetRequest(ctx, url)	
-	if err != nil {
-		return err
-	}
-	defer responseCost.Body.Close()
-	if responseCost.StatusCode > 299 {
-		return fmt.Errorf("failed to get status costs: %s", responseCost.Status)
-	}
-
-	var statuscosts []models.StatusCostResponse
-	err = json.NewDecoder(responseCost.Body).Decode(&statuscosts)
-	if err != nil {
-		return err
-	}*/
+	err = s.repo.DeleteAll(ctx)
+    if err != nil {
+        return fmt.Errorf("error deleting statuses: %v", err)
+    }
     for _, status := range statuses {
         var dto models.StatusDTO
         dto.StatusId = status.StatusId
         dto.Description = status.Description
-        dto.Closed = status.Closed
+        dto.Closed = status.Closed        
         dto.Color = status.Color
         dto.OperatorsAllowed = status.OperatorsAllowed
+        dto.IsDefault = status.IsDefault
         dto.Stopped = status.Stopped
         
         
@@ -82,14 +74,25 @@ func(s *service) BuildDTO(ctx context.Context)error{
         if err := s.repo.Set(ctx, key, dto); err != nil {
             return err
         }
+        if dto.IsDefault {
+            fmt.Println("Default status: ", dto.Description)
+            if err := s.repo.SetDefault(ctx, key, dto); err != nil {
+                return err
+            }
+        }
     }
     return nil
 }
 
-
-
 func (s *service) StatusIn(ctx context.Context, workcenterID, statusID string, reasonID *string) error {
-    wc, err := s.workcenterPort.GetWorkcenterDTO(ctx, workcenterID)
+    // ⭐ VALIDATE AND EXECUTE: Let validator handle business rules
+    // This will automatically remove operators/workorders if new status doesn't allow them
+    if err := s.validator.ValidateStatusChange(ctx, workcenterID, statusID); err != nil {
+        return fmt.Errorf("validation failed: %w", err)
+    }
+
+    // Get workcenter (already updated by validator if needed)
+    wc, err := s.port.GetWorkcenterDTO(ctx, workcenterID)
     if err != nil {
         return fmt.Errorf("error checking workcenter existence: %w", err)
     }
@@ -97,22 +100,12 @@ func (s *service) StatusIn(ctx context.Context, workcenterID, statusID string, r
         return fmt.Errorf("workcenter %s not found", workcenterID)
     }
 
-    //key := fmt.Sprintf("%s:%s", workcenterID, statusID)
-    //st, _, err := s.repo.FindByID(ctx, key)
     st, err := s.FindByID(ctx, statusID)
     if err != nil {
         return fmt.Errorf("status %s not found: %w", statusID, err)
     }
 
 
-    if !st.OperatorsAllowed {
-        //operators out
-        for _, operator := range wc.Operators {            
-            s.operatorPort.ClockOut(ctx, operator.OperatorID.String(), workcenterID)
-        }
-        // Clear operators from memory to avoid overwriting the ClockOut changes
-        wc.Operators = []models.OperatorDTO{}
-    }
 
     // backend call
     req := models.StatusInRequest{}
@@ -143,6 +136,7 @@ func (s *service) StatusIn(ctx context.Context, workcenterID, statusID string, r
     wc.StatusReasonId = req.StatusReasonId
     wc.StatusName = st.Description
     wc.StatusOperatorsAllowed = st.OperatorsAllowed
+    wc.StatusWorkOrdersAllowed = st.WorkOrdersAllowed
     wc.StatusClosed = st.Closed
     wc.StatusStopped = st.Stopped
     wc.StatusColor = st.Color
@@ -161,12 +155,12 @@ func (s *service) StatusIn(ctx context.Context, workcenterID, statusID string, r
         Payload: wc,
     })
 
-	workcenters, err := s.workcenterPort.GetAllWorkcenters(ctx)
+	workcenters, err := s.port.GetAllWorkcenters(ctx)
 	if err != nil {
 		return fmt.Errorf("error listing workcenters: %w", err)
 	}
 
-	s.hub.Broadcast("general", struct {
+	s.hub.Broadcast("General", struct {
 			Type string `json:"type"`
 			Payload interface{} `json:"payload"`
 		}{
@@ -182,6 +176,14 @@ func (s *service) FindByID(ctx context.Context, statusID string) (models.StatusD
     st, _, err := s.repo.FindByID(ctx, key)
     if err != nil {
         return models.StatusDTO{}, fmt.Errorf("status %s not found: %w", statusID, err)
+    }
+    return st, nil
+}
+
+func(s *service) GetDefaultStatus(ctx context.Context) (models.StatusDTO, error){
+	st, err := s.repo.GetDefaultStatus(ctx)
+    if err != nil {
+        return models.StatusDTO{}, fmt.Errorf("default status not found: %w", err)
     }
     return st, nil
 }

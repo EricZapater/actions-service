@@ -16,6 +16,7 @@ import (
 type Service interface {
 	WorkOrderPhaseIn(ctx context.Context, req models.WorkOrderPhaseAndStatusRequest)error
 	WorkOrderPhaseOut(ctx context.Context, req models.WorkOrderPhaseOutRequest)error
+	FindByID(ctx context.Context, id string) (models.WorkOrderPhaseResponse, error)
 }
 
 type service struct {
@@ -52,34 +53,12 @@ func (s *service) WorkOrderPhaseIn(ctx context.Context, req models.WorkOrderPhas
 	}
 
 	//Get Phase information
-	response, err := s.client.DoGetRequest(ctx, "/api/WorkOrder/Detailed/ByWorkOrderPhase/" + req.WorkOrderPhaseId)
-	if err != nil || response == nil || response.StatusCode > 299 {
-		var status string
-		var code int
-		if response != nil {
-			status = response.Status
-			code = response.StatusCode
-		}
-		return fmt.Errorf("backend workorderphase in failed (code %d, status %s): %w", code, status, err)
-	}
-	var phase []models.WorkOrderPhaseResponse
-	err = json.NewDecoder(response.Body).Decode(&phase)
+	phase, err := s.FindByID(ctx, req.WorkOrderPhaseId)
 	if err != nil {
 		return err
-	}	
+	}
 	now := time.Now().Format("2006-01-02T15:04:05")
-	wo := models.WorkOrderDTO{}
-	wo.WorkOrderPhaseId = req.WorkOrderPhaseId
-	wo.StartTime = now
-	wo.PlannedQuantity = phase[0].PlannedQuantity
-	wo.WorkOrderCode = phase[0].WorkOrderCode
-	wo.WorkOrderPhaseCode = phase[0].WorkOrderPhaseCode
-	wo.WorkOrderPhaseDescription = phase[0].WorkOrderPhaseDescription
-	wo.ReferenceCode = phase[0].ReferenceCode
-	wo.ReferenceDescription = phase[0].ReferenceDescription
-	
-	if response != nil && response.Body != nil { _ = response.Body.Close() }
-	
+	wo := s.createWorkOrderDTO(req.WorkOrderPhaseId, phase, now)
 	
 	//Comprovar si en la request hi ha MachineStatusId
 	request := models.WorkOrderPhaseAndStatusRequest{}
@@ -189,6 +168,7 @@ func (s *service) WorkOrderPhaseOut(ctx context.Context, req models.WorkOrderPha
 		TimeStamp:         time.Now().Format("2006-01-02T15:04:05"),
 		WorkOrderStatusId: req.WorkOrderStatusId,
 		NextWorkOrderPhaseId: req.NextWorkOrderPhaseId,
+		NextMachineStatusId: req.NextMachineStatusId,
 	}
 		
 	response, err := s.client.DoPostRequest(ctx, "/api/WorkcenterShift/WorkOrderPhase/Out", backendRequest)
@@ -211,6 +191,16 @@ func (s *service) WorkOrderPhaseOut(ctx context.Context, req models.WorkOrderPha
 		}
 	}
 	wc.WorkOrders = filtered
+	if req.NextWorkOrderPhaseId != nil {
+		phase, err := s.FindByID(ctx, *req.NextWorkOrderPhaseId)
+		if err != nil {
+			return err
+		}
+		
+		now := time.Now().Format("2006-01-02T15:04:05")
+		wo := s.createWorkOrderDTO(*req.NextWorkOrderPhaseId, phase, now)
+		wc.WorkOrders = append(wc.WorkOrders, wo)
+	}
 	
 	if err := s.repo.SetWorkcenterDTO(ctx, wc.WorkcenterID.String(), *wc); err != nil {
         return fmt.Errorf("error updating workcenter %s: %w", wc.WorkcenterID.String(), err)
@@ -248,7 +238,7 @@ func(s *service) publishWorkcenter(ctx context.Context, wc models.WorkcenterDTO)
 		if err != nil {
 			return fmt.Errorf("error listing workcenters: %w", err)
 		}
-		s.hub.Broadcast("general", struct {
+		s.hub.Broadcast("General", struct {
 				Type string `json:"type"`
 				Payload interface{} `json:"payload"`
 			}{
@@ -256,4 +246,38 @@ func(s *service) publishWorkcenter(ctx context.Context, wc models.WorkcenterDTO)
 				Payload: workcenters,
 			})
 			return nil
+}
+
+func(s *service) FindByID(ctx context.Context, id string) (models.WorkOrderPhaseResponse, error) {
+	response, err := s.client.DoGetRequest(ctx, "/api/WorkOrder/Detailed/ByWorkOrderPhase/" + id)
+	if err != nil || response == nil || response.StatusCode > 299 {
+		var status string
+		var code int
+		if response != nil {
+			status = response.Status
+			code = response.StatusCode
+		}
+		return models.WorkOrderPhaseResponse{}, fmt.Errorf("backend workorderphase in failed (code %d, status %s): %w", code, status, err)
+	}
+	var phase []models.WorkOrderPhaseResponse
+	err = json.NewDecoder(response.Body).Decode(&phase)
+	if err != nil {
+		return models.WorkOrderPhaseResponse{}, err
+	}
+	if response != nil && response.Body != nil { _ = response.Body.Close() }
+	return phase[0], nil
+}
+
+
+func (s *service) createWorkOrderDTO(phaseid string, phase models.WorkOrderPhaseResponse, now string) models.WorkOrderDTO {
+    return models.WorkOrderDTO{
+        WorkOrderPhaseId: phaseid,
+        StartTime: now,
+        PlannedQuantity: phase.PlannedQuantity,
+        WorkOrderCode: phase.WorkOrderCode,
+        WorkOrderPhaseCode: phase.WorkOrderPhaseCode,
+        WorkOrderPhaseDescription: phase.WorkOrderPhaseDescription,
+        ReferenceCode: phase.ReferenceCode,
+        ReferenceDescription: phase.ReferenceDescription,
+    }
 }

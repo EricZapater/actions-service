@@ -3,12 +3,12 @@ package operator
 import (
 	"actions-service/internal/clients"
 	"actions-service/internal/models"
+	"actions-service/internal/validator"
 	"actions-service/internal/ws"
 	"context"
 	"encoding/json"
 	"fmt"
 	"log"
-	"net/http"
 	"time"
 
 	"github.com/google/uuid"
@@ -18,21 +18,24 @@ type Service interface {
 	BuilDTO(ctx context.Context)error
 	ClockIn(ctx context.Context, operatorID, workcenterID string)error
 	ClockOut(ctx context.Context, operatorID, workcenterID string)error
+	FindByID(ctx context.Context, id string) (models.OperatorDTO, error)
 }
 
 type service struct {
-	client clients.HttpBackendClient
-	repo Repository	
-	port WorkcenterPort
-	hub *ws.Hub
+	client    clients.HttpBackendClient
+	repo      Repository	
+	port      WorkcenterPort
+	hub       *ws.Hub
+	validator validator.Service  // ⭐ Validator for business rules
 }
 
-func NewOperatorService(client clients.HttpBackendClient, repo Repository, port WorkcenterPort, hub *ws.Hub) Service {
+func NewOperatorService(client clients.HttpBackendClient, repo Repository, port WorkcenterPort, hub *ws.Hub, validator validator.Service) Service {
 	return &service{
-		client: client,
-		repo: repo,
-		port: port,
-		hub: hub,
+		client:    client,
+		repo:      repo,
+		port:      port,
+		hub:       hub,
+		validator: validator,
 	}
 }
 
@@ -96,13 +99,6 @@ func (s *service) BuilDTO(ctx context.Context)error {
 }
 
 func (s *service) ClockIn(ctx context.Context, operatorID, workcenterID string)error {
-	wc, err := s.port.GetWorkcenterDTO(ctx, workcenterID)
-	if err != nil {
-		return fmt.Errorf("error checking workcenter existence: %w", err)
-	}		
-	if !wc.StatusOperatorsAllowed {				
-		return NewServiceError(http.StatusForbidden, "operators not allowed", nil)		
-	}	
 	operator, _, err := s.repo.FindByID(ctx, operatorID)
 	if err != nil {
 		if err == ErrOperatorNotFound {
@@ -112,6 +108,10 @@ func (s *service) ClockIn(ctx context.Context, operatorID, workcenterID string)e
 	}
 	now := time.Now()
 	
+	if err := s.validator.ValidateOperatorClockIn(ctx, operatorID, workcenterID); err != nil {
+		return err  // Return validation error (e.g., 403 Forbidden)
+	}
+
 	clockindto := models.OperatorClockInDTO{
 		OperatorId: uuid.MustParse(operatorID),
 		WorkcenterId: uuid.MustParse(workcenterID),
@@ -124,10 +124,14 @@ func (s *service) ClockIn(ctx context.Context, operatorID, workcenterID string)e
 		return NewServiceError(response.StatusCode, response.Status, err)
 	}
 	
+	wc, err := s.port.GetWorkcenterDTO(ctx, workcenterID)
+	if err != nil {
+		return fmt.Errorf("error checking workcenter existence: %w", err)
+	}	
 	//Fer el set al repo PERO del JSON sencer del workcenter
 	operator.OperatorStartTime = now.Format("2006-01-02T15:04:05")
 	wc.Operators = append(wc.Operators, operator)
-	fmt.Println(operator)
+
 	if err := s.repo.SetWorkcenterDTO(ctx, wc.WorkcenterID.String(), *wc); err != nil {
 		return fmt.Errorf("error updating workcenter %s: %w", wc.WorkcenterID.String(), err)
 	}
@@ -216,4 +220,12 @@ func (s *service) ClockOut(ctx context.Context, operatorID, workcenterID string)
 			Payload: workcenters,
 		})
 	return nil
+}
+
+func (s *service) FindByID(ctx context.Context, id string) (models.OperatorDTO, error) {
+    operator,_, err := s.repo.FindByID(ctx, id)
+	if err != nil {
+		return models.OperatorDTO{}, err
+	}
+	return operator, nil
 }

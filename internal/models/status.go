@@ -21,6 +21,7 @@ type StatusResponse struct {
 	Color string `json:"color"`
 	Stopped bool `json:"stopped"`
 	OperatorsAllowed bool `json:"operatorsAllowed"`
+	IsDefault bool `json:"default"`
 	Closed bool `json:"closed"`
 }
 
@@ -36,7 +37,9 @@ type StatusDTO struct {
 	Description string `json:"description"`
 	Color string `json:"color"`
 	Stopped bool `json:"stopped"`
-	OperatorsAllowed bool `json:"operatorsAllowed"`
+	OperatorsAllowed bool `json:"operatorsAllowed"`	
+	WorkOrdersAllowed bool `json:"workOrdersAllowed"`
+	IsDefault bool `json:"default"`
 	Closed bool `json:"closed"`
 	Cost float32 `json:"cost"`
 	StatusStartTime string `json:"statusStartTime"`

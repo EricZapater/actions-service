@@ -49,3 +49,47 @@ func (r *Repository) FindCurrent(ctx context.Context, now time.Time, id string) 
 	return models.ShiftDetailDTO{}, ErrShiftNotFound
 }
 
+
+func (r *Repository) FindByID(ctx context.Context, id string) (models.ShiftDTO, error) {
+    r.mu.RLock()
+    defer r.mu.RUnlock()
+    
+    shift, exists := r.shifts[id]
+    if !exists {
+        return models.ShiftDTO{}, ErrShiftNotFound
+    }
+    return shift, nil
+}
+
+func (r *Repository) FindShiftDetailByID(ctx context.Context, shiftID, detailID string) (models.ShiftDetailDTO, error) {
+    r.mu.RLock()
+    defer r.mu.RUnlock()
+    
+    shift, exists := r.shifts[shiftID]
+    if !exists {
+        return models.ShiftDetailDTO{}, ErrShiftNotFound
+    }
+    
+    for _, detail := range shift.ShiftDetails {
+        if detail.ID.String() == detailID {
+            return detail, nil
+        }
+    }
+    
+    return models.ShiftDetailDTO{}, ErrShiftDetailNotFound 
+}
+
+func(r *Repository) FindShiftByDetailID(ctx context.Context, detailID string) (models.ShiftDTO, error) {
+    r.mu.RLock()
+    defer r.mu.RUnlock()
+    
+    for _, shift := range r.shifts {
+        for _, detail := range shift.ShiftDetails {
+            if detail.ID.String() == detailID {
+                return shift, nil
+            }
+        }
+    }
+    
+    return models.ShiftDTO{}, ErrShiftDetailNotFound 
+}

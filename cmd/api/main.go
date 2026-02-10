@@ -42,14 +42,17 @@ func main() {
 		log.Fatalf("Failed to initialize metrics: %v", err)
 	}
 
+	app.Services.BootstrapService.InitDTO(ctx)	
 	app.Services.ShiftService.BuildDTO(ctx)
 	app.Services.OperatorService.BuilDTO(ctx)
+	app.Services.StatusService.BuildDTO(ctx)	
 	app.Services.WorkcenterService.BuildDTO(ctx)	
-	app.Services.StatusService.BuildDTO(ctx)
+	
 	
 	
 	
 	go server.Run(app)
+	
 	endTime := time.Now()	
 	log.Printf("Startup time: %v", endTime.Sub(startTime))
 
@@ -73,7 +76,5 @@ func main() {
 	
 	<-stopChan // Espera senyal per aturar l'aplicació
 	log.Println("Application stopped")
-	
-
 }
 

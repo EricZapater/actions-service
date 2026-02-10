@@ -23,6 +23,7 @@ type WorkcenterDTO struct {
 	StatusReasonId *uuid.UUID `json:"statusReasonId"`
 	StatusName                  string         `json:"statusName"`
 	StatusOperatorsAllowed      bool           `json:"statusOperatorsAllowed"`
+	StatusWorkOrdersAllowed     bool           `json:"statusWorkOrdersAllowed"`
 	StatusClosed                bool           `json:"statusClosed"`
 	StatusStopped               bool           `json:"statusStopped"`
 	StatusColor                 string         `json:"statusColor"`
