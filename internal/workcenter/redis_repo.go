@@ -84,7 +84,7 @@ func (r *RedisRepo) List(ctx context.Context) ([]models.WorkcenterDTO, error) {
 			return nil, err 
 		}
 		
-		var wc models.WorkcenterDTO
+ 		var wc models.WorkcenterDTO
 		if err := json.Unmarshal(data, &wc); err == nil {
 			workcenters = append(workcenters, wc)
 		}

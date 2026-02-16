@@ -27,6 +27,7 @@ type Service struct {
 
 type service interface {
 	InitDTO(ctx context.Context) error
+	FlushCache(ctx context.Context) error
 }
 
 func NewService(redisRepo *RedisRepo, client clients.HttpBackendClient, statusService status.Service, operatorService operator.Service, shiftService shift.Service, workorderphaseService workorderphase.Service) *Service {
@@ -40,9 +41,11 @@ func NewService(redisRepo *RedisRepo, client clients.HttpBackendClient, statusSe
 	}
 }
 
-func (s *Service) InitDTO(ctx context.Context) error {
-	log.Println("InitDTO")
-	s.RedisRepo.FlushDB(ctx)
+func(s *Service)FlushCache(ctx context.Context) error {
+	return s.RedisRepo.FlushDB(ctx)
+}
+
+func (s *Service) InitDTO(ctx context.Context) error {	
 	url := "/api/WorkcenterShift/Currents"
 	response, err := s.client.DoGetRequest(ctx, url)
 	if err != nil {
@@ -96,6 +99,13 @@ func (s *Service) PopulateDTO(ctx context.Context, wcs models.WorkcenterShiftDTO
 		ShiftDetailIsProductiveTime: shiftDetail.IsProductiveTime,
 	}
 	for _, detail := range wcs.Details {
+		layout := "2006-01-02T15:04:05" // ISO8601
+		parsedTime, err := time.Parse(layout, detail.StartTime)
+		if err != nil {
+			log.Printf("Error parsing start time '%s': %v", detail.StartTime, err)
+			// fallback to current time or keep zero value? using current time as fallback seems safer for display
+			parsedTime = time.Now() 
+		}
 		status, err := s.statusService.FindByID(ctx, detail.MachineStatusId)
 		if err != nil {
 			return models.WorkcenterDTO{}, err
@@ -107,6 +117,7 @@ func (s *Service) PopulateDTO(ctx context.Context, wcs models.WorkcenterShiftDTO
 			if err != nil {
 				return models.WorkcenterDTO{}, err
 			}
+			operator.OperatorStartTime = parsedTime.String()
 		}
 		workorderphase := models.WorkOrderPhaseResponse{}
 		if detail.WorkOrderPhaseId != "" {
@@ -126,13 +137,14 @@ func (s *Service) PopulateDTO(ctx context.Context, wcs models.WorkcenterShiftDTO
 			ReferenceDescription: workorderphase.ReferenceDescription,
 			QuantityOk: detail.QuantityOk,
 			QuantityKo: detail.QuantityKo,
+			StartTime: parsedTime.String(),
 		}
 
 		var statusReasonId uuid.UUID
 		if detail.MachineStatusReasonId != ""  {
 			statusReasonId = uuid.MustParse(detail.MachineStatusReasonId)
 		}
-		layout := "2006-01-02 15:04:05"
+		
 		workcenter.StatusID = status.StatusId
 		workcenter.StatusName = status.Description
 		workcenter.StatusReasonId = &statusReasonId
@@ -141,7 +153,9 @@ func (s *Service) PopulateDTO(ctx context.Context, wcs models.WorkcenterShiftDTO
 		workcenter.StatusClosed = status.Closed
 		workcenter.StatusStopped = status.Stopped
 		workcenter.StatusColor = status.Color
-		workcenter.StatusStartTime, _ = time.Parse(layout, detail.StartTime)
+
+		
+		workcenter.StatusStartTime = parsedTime
 		if detail.OperatorId != "" {
 			workcenter.Operators = append(workcenter.Operators, operator)
 		}

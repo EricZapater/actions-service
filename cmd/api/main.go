@@ -41,11 +41,11 @@ func main() {
 	if err := observability.InitMetrics(); err != nil {
 		log.Fatalf("Failed to initialize metrics: %v", err)
 	}
-
-	app.Services.BootstrapService.InitDTO(ctx)	
+	app.Services.BootstrapService.FlushCache(ctx)	
 	app.Services.ShiftService.BuildDTO(ctx)
 	app.Services.OperatorService.BuilDTO(ctx)
 	app.Services.StatusService.BuildDTO(ctx)	
+	app.Services.BootstrapService.InitDTO(ctx)	
 	app.Services.WorkcenterService.BuildDTO(ctx)	
 	
 	

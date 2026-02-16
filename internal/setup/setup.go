@@ -44,7 +44,7 @@ func NewApp(ctx context.Context) (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-
+	
 	client := clients.NewHttpBackendClient(cfg.BackendUrl)
 
 	redisClient := redis.NewClient(&redis.Options{

@@ -106,7 +106,7 @@ func (s *service) WorkOrderPhaseIn(ctx context.Context, req models.WorkOrderPhas
 			}
 			return fmt.Errorf("backend workorderphase and status in failed (code %d, status %s): %w", code, status, err)
 		}
-		fmt.Println(response)
+
 		if response != nil && response.Body != nil { _ = response.Body.Close() }
     	
 		wc.StatusID = st.StatusId
@@ -170,6 +170,26 @@ func (s *service) WorkOrderPhaseOut(ctx context.Context, req models.WorkOrderPha
 		NextWorkOrderPhaseId: req.NextWorkOrderPhaseId,
 		NextMachineStatusId: req.NextMachineStatusId,
 	}
+	if req.NextMachineStatusId != nil {
+		st, err := s.statusPort.FindByID(ctx, *req.NextMachineStatusId)
+		if err != nil {
+			return err
+		}
+		if !st.OperatorsAllowed {
+			for _, operator := range wc.Operators {
+				s.operatorPort.ClockOut(ctx, operator.OperatorID.String(), req.WorkcenterID)
+			}
+			wc.Operators = []models.OperatorDTO{}
+		}
+		wc.StatusID = st.StatusId
+		wc.StatusReasonId = &uuid.Nil
+		wc.StatusName = st.Description
+		wc.StatusOperatorsAllowed = st.OperatorsAllowed
+		wc.StatusClosed = st.Closed
+		wc.StatusStopped = st.Stopped
+		wc.StatusColor = st.Color
+		wc.StatusStartTime = time.Now()
+	}
 		
 	response, err := s.client.DoPostRequest(ctx, "/api/WorkcenterShift/WorkOrderPhase/Out", backendRequest)
 		if err != nil || response == nil || response.StatusCode > 299 {
@@ -225,6 +245,7 @@ func(s *service) updateQuantities(ctx context.Context, req models.WorkOrderPhase
 		if response != nil && response.Body != nil { _ = response.Body.Close() }
 		return nil
 }
+
 
 func(s *service) publishWorkcenter(ctx context.Context, wc models.WorkcenterDTO) error {
 		s.hub.Broadcast(wc.WorkcenterID.String(), struct {
