@@ -44,6 +44,7 @@ func (r *RedisRepo) SetMultiple(ctx context.Context, workcenters []models.Workce
             return err
         }
         pipe.Set(ctx, fmt.Sprintf("workcenter:%s", wc.WorkcenterID), data, 0)
+		pipe.SAdd(ctx, "workcenters", wc.WorkcenterID.String())
     }
     
     _, err := pipe.Exec(ctx)
